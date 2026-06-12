@@ -1,0 +1,44 @@
+{
+  "10": {
+    "grep": {
+      "accuracy": 0.0,
+      "avg_tokens": 5.666666666666667
+    },
+    "lqe_grep": {
+      "accuracy": 0.8333333333333334,
+      "avg_tokens": 45.666666666666664
+    },
+    "vector": {
+      "accuracy": 0.3333333333333333,
+      "avg_tokens": 42.5
+    }
+  },
+  "20": {
+    "grep": {
+      "accuracy": 0.0,
+      "avg_tokens": 8.5
+    },
+    "lqe_grep": {
+      "accuracy": 0.8333333333333334,
+      "avg_tokens": 62.0
+    },
+    "vector": {
+      "accuracy": 0.0,
+      "avg_tokens": 42.5
+    }
+  },
+  "35": {
+    "grep": {
+      "accuracy": 0.0,
+      "avg_tokens": 8.0
+    },
+    "lqe_grep": {
+      "accuracy": 1.0,
+      "avg_tokens": 63.666666666666664
+    },
+    "vector": {
+      "accuracy": 0.0,
+      "avg_tokens": 42.166666666666664
+    }
+  }
+}

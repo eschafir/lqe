@@ -1,0 +1,10 @@
+# Datasets
+data/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Local Results
+lqe_real_results.json
+evaluation_results.png
