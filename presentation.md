@@ -96,7 +96,20 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 ---
 
-# Slide 9: Insights: Semantic Entity Locking
+# Slide 9: Real-World Medical Benchmark: BEIR NFCorpus Evaluation
+### Zero-Shot Document Retrieval (Success@3) on a Haystack of 50 Abstracts
+*   **The Setup**: Evaluated on 10 test queries comparing patient-written terms to medical documents.
+*   **Summary Table**:
+    *   **Vanilla Grep**: **80.0% Success@3** (Avg context: 1008.2 tokens)
+    *   **LQE-Grep (Ours)**: **80.0% Success@3** (Avg context: 3886.3 tokens)
+    *   **Vector Search**: **40.0% Success@3**
+*   **The Precision Gap**:
+    *   Vector search failed (40% success) because embeddings prioritize semantic overlaps (e.g., retrieving leukemia papers for *"Dragon's Blood"* or general calcium papers for *"Milk and Bones"*).
+    *   Lexical search restricts matching to actual entity names, maintaining high precision. LQE achieves the same high success rate while matching broad synonyms (like *"carcinoma"* for *"cancer"*).
+
+---
+
+# Slide 10: Insights: Semantic Entity Locking
 ### Why Vector Search Failed
 *   Vector search was confused by **action template overlap**. When the query was *"What color vehicle did the user buy?"*, it retrieved:
     `[User]: The user bought a matching white trenchcoat for the party.`
@@ -108,7 +121,7 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 ---
 
-# Slide 10: Critical Optimization: Word Boundaries
+# Slide 11: Critical Optimization: Word Boundaries
 ### Substring Collision Bug
 *   In early runs, the query expansion for `vehicle` included the word `car`.
 *   This caused false positive matches on distractors containing `car` as a substring (e.g. `cardigan`, `cardiologist`).
@@ -121,11 +134,11 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 ---
 
-# Slide 11: Scaled Plan & Next Steps
+# Slide 12: Scaled Plan & Next Steps
 1.  **Stop-Word & Common-Word Filtering**:
     *   Optimize LQE query expansion to prune overly broad terms (like `name` or `shop`) that cause high token recall in large corpora.
 2.  **Scale Real-World Evaluation**:
-    *   Evaluate on the full 500-question LongMemEval dataset across multiple question types.
+    *   Evaluate on the full 500-question LongMemEval dataset and the complete 3,000+ document BEIR NFCorpus benchmark.
 3.  **Draft Paper Layout**:
     *   Present LQE-Grep as a compute-efficient, zero-index alternative to RAG for dynamic environments.
     *   Detail how the compute complexity of embedding-based search forces truncation in long-context, failing where lexical search succeeds.

@@ -70,39 +70,44 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 | **LQE-Grep (Ours)** | **60.0%** | 4,049.6 | High recall. Suffered from over-expansion of common words (e.g. matching "name" or "shop" in a 100k-token corpus). |
 | **Vector Search** | **0.0%** | 53.2 | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
 
+### Benchmark C: BEIR NFCorpus Medical Dataset
+We downloaded the **BEIR NFCorpus** medical abstracts dataset and evaluated the retrievers on 10 test queries to measure **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
+
+#### NFCorpus Results Table
+| Retrieval Method | Success@3 | Avg. Context Footprint (Tokens) | Notes / Behavior |
+|---|---|---|---|
+| **Vanilla Grep** | **80.0%** | 1,008.2 | High success. Exact medical keywords (e.g. "cholesterol", "bones") are highly specific. |
+| **LQE-Grep (Ours)** | **80.0%** | 3,886.3 | High success. Matches synonyms (e.g. "carcinoma" for "cancer" or "lipid" for "cholesterol") but suffers from context inflation due to generic expanded words. |
+| **Vector Search** | **40.0%** | N/A | Low success. Embeddings blur related terms, retrieving false positives (e.g. general blood cell papers for "Dragon's Blood" plant extract or general calcium papers for "Milk and Bones"). |
 
 ---
-- Look for benchmarks
-    - Show real examples
 
-## 4. Repository Structure
+## 4. How Modern Coding Agents Handle Search
+
+To understand how our findings apply to industry tools, we examined the search architectures of major AI agent platforms:
+
+* **Claude Code (Anthropic)**: Favoring a philosophy of **agentic search**, Claude Code does not use native local vector databases or embeddings. Instead, it relies on direct filesystem inspection using **ripgrep (`rg`)** and globbing, loading matching files on-demand into its large context window. Semantic search is only available if a developer hooks in an external database via a Model Context Protocol (MCP) plugin.
+* **OpenClaw**: A modular, model-agnostic agent framework. It has no built-in semantic search engine; it uses configurable web and file search skills.
+* **Antigravity (Google DeepMind)**: Employs a similar agentic search pattern, executing recursive lexical searches over raw files using a fast `grep_search` (ripgrep) tool without maintaining a local vector index.
+
+### Why LQE Matters for Agentic Loops
+Because CLI agents default to raw, local lexical utilities (like ripgrep) for file searching, they suffer from the **Vocabulary Mismatch Problem** (missing `"sedan"` when querying `"vehicle"`). LQE-Grep bridges this gap entirely at the harness middleware level—enabling **semantic-level recall** directly on top of their fast, native ripgrep tools without the overhead of local vector databases.
+
+---
+
+## 5. Repository Structure
 
 *   [synthetic_memory.py](synthetic_memory.py): Programmatic dialogue generator for creating controlled lexical-semantic mismatch datasets.
 *   [lqe_evaluation.py](lqe_evaluation.py): Evaluates the three methods over synthetic dataset sweeps.
-*   [real_dataset_eval.py](real_dataset_eval.py): Downloads and benchmarks the methods over the real-world LongMemEval corpus.
+*   [real_dataset_eval.py](real_dataset_eval.py): Benchmarks the methods over the real-world LongMemEval conversational corpus.
+*   [nfcorpus_eval.py](nfcorpus_eval.py): Benchmarks the methods on the BEIR NFCorpus medical search dataset.
 *   [plot_results.py](plot_results.py): Generates performance graphs from JSON results.
 *   [presentation.md](presentation.md) / [presentation.tex](presentation.tex): Slide decks outlining the research background, motivated gaps, pilot and real-world results, and TikZ visual schematics.
 
 ---
 
-## 5. Next Steps
+## 6. Next Steps
 
 1. **Conservative LQE Expansion (LQE v2)**: Restrict regex query expansion to filter out high-frequency stop-words (like "name", "shop", "color") which cause massive context inflation in large corpora.
-2. **Evaluation Scale**: Run the full 500-question LongMemEval dataset across multiple question categories.
+2. **Evaluation Scale**: Run the full 500-question LongMemEval dataset and the complete 3,000+ document BEIR NFCorpus benchmark.
 3. **Paper Drafting**: Outline a standard LaTeX layout comparing lexical regex constraints vs. dense embedding similarity in production agent loops.
-
-
-
-
-----------
-
-Multimodal models + search methods
-
-Check out claude code, openclaw to see if grep is being combined with semantic search.
-
-
-(thnink about including decomposition if possible)
-
-
-
-Text-to-Grep idea... explore ideas, datasets..
