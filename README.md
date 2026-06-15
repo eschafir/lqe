@@ -71,14 +71,15 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 | **Vector Search** | **0.0%** | 53.2 | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
 
 ### Benchmark C: BEIR NFCorpus Medical Dataset
-We downloaded the **BEIR NFCorpus** medical abstracts dataset and evaluated the retrievers on 10 test queries to measure **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
+We evaluated the retrievers on 15 test queries from the **BEIR NFCorpus** medical abstracts dataset, measuring **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
 
 #### NFCorpus Results Table
 | Retrieval Method | Success@3 | Avg. Context Footprint (Tokens) | Notes / Behavior |
 |---|---|---|---|
-| **Vanilla Grep** | **80.0%** | 1,008.2 | High success. Exact medical keywords (e.g. "cholesterol", "bones") are highly specific. |
-| **LQE-Grep (Ours)** | **80.0%** | 3,886.3 | High success. Matches synonyms (e.g. "carcinoma" for "cancer" or "lipid" for "cholesterol") but suffers from context inflation due to generic expanded words. |
-| **Vector Search** | **40.0%** | N/A | Low success. Embeddings blur related terms, retrieving false positives (e.g. general blood cell papers for "Dragon's Blood" plant extract or general calcium papers for "Milk and Bones"). |
+| **Vanilla Grep** | **86.67%** | 1,239.1 | High success. Exact medical keywords are highly specific. |
+| **LQE-Grep (v1)** | **86.67%** | 4,227.7 | High recall but suffers from severe token inflation due to generic medical terminology. |
+| **LQE-Grep v2 (Ours)** | **86.67%** | **2,293.4** | **Matches maximum recall while reducing token footprint by 45.2%** via dynamic global Document Frequency (DF) filtering. |
+| **Vector Search** | **33.33%** | N/A | Low success. Embeddings suffer from semantic blurring on domain-specific abstractions. |
 
 ---
 
