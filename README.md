@@ -70,7 +70,10 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 | **LQE-Grep (Ours)** | **60.0%** | 4,049.6 | High recall. Suffered from over-expansion of common words (e.g. matching "name" or "shop" in a 100k-token corpus). |
 | **Vector Search** | **0.0%** | 53.2 | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
 
+
 ---
+- Look for benchmarks
+    - Show real examples
 
 ## 4. Repository Structure
 
@@ -87,3 +90,19 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 1. **Conservative LQE Expansion (LQE v2)**: Restrict regex query expansion to filter out high-frequency stop-words (like "name", "shop", "color") which cause massive context inflation in large corpora.
 2. **Evaluation Scale**: Run the full 500-question LongMemEval dataset across multiple question categories.
 3. **Paper Drafting**: Outline a standard LaTeX layout comparing lexical regex constraints vs. dense embedding similarity in production agent loops.
+
+
+
+
+----------
+
+Multimodal models + search methods
+
+Check out claude code, openclaw to see if grep is being combined with semantic search.
+
+
+(thnink about including decomposition if possible)
+
+
+
+Text-to-Grep idea... explore ideas, datasets..
