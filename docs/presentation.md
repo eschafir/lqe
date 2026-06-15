@@ -88,24 +88,26 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 *   **The Setup**: Evaluated on 10 random `single-session-user` queries from `longmemeval_s_cleaned.json`.
 *   **Summary Table**:
     *   **Vanilla Grep**: **70.0% Accuracy** (Avg context: 717.1 tokens)
-    *   **LQE-Grep (Ours)**: **60.0% Accuracy** (Avg context: 4049.6 tokens)
+    *   **LQE-Grep (v1)**: **60.0% Accuracy** (Avg context: 3,933.1 tokens)
+    *   **LQE-Grep v2 (Ours)**: **60.0% Accuracy** (Avg context: **2,897.7 tokens** - **26.3% reduction**)
     *   **Vector Search**: **0.0% Accuracy** (Avg context: 53.2 tokens)
 *   **The Truncation Bottleneck**:
     *   Vector search failed completely because embedding 500+ turns was too slow, forcing truncation to the first 150 turns. The answer (in session 51) was missed entirely.
-    *   Lexical search scanned all 500+ turns in milliseconds, capturing the needle. LQE suffered from matching common expanded words (e.g. "name", "shop"), indicating a need for stop-word filtering.
+    *   Lexical search scanned all 500+ turns in milliseconds, capturing the needle. LQE v1 suffered from matching common expanded words (e.g. "name", "shop"), which LQE v2 successfully prunes via dynamic local turn-frequency filtering.
 
 ---
 
 # Slide 9: Real-World Medical Benchmark: BEIR NFCorpus Evaluation
 ### Zero-Shot Document Retrieval (Success@3) on a Haystack of 50 Abstracts
-*   **The Setup**: Evaluated on 10 test queries comparing patient-written terms to medical documents.
+*   **The Setup**: Evaluated on 15 test queries comparing patient-written terms to medical documents.
 *   **Summary Table**:
-    *   **Vanilla Grep**: **80.0% Success@3** (Avg context: 1008.2 tokens)
-    *   **LQE-Grep (Ours)**: **80.0% Success@3** (Avg context: 3886.3 tokens)
-    *   **Vector Search**: **40.0% Success@3**
+    *   **Vanilla Grep**: **86.67% Success@3** (Avg context: 1,239.1 tokens)
+    *   **LQE-Grep (v1)**: **86.67% Success@3** (Avg context: 4,227.7 tokens)
+    *   **LQE-Grep v2 (Ours)**: **86.67% Success@3** (Avg context: **2,293.4 tokens** - **45.2% reduction**)
+    *   **Vector Search**: **33.33% Success@3**
 *   **The Precision Gap**:
-    *   Vector search failed (40% success) because embeddings prioritize semantic overlaps (e.g., retrieving leukemia papers for *"Dragon's Blood"* or general calcium papers for *"Milk and Bones"*).
-    *   Lexical search restricts matching to actual entity names, maintaining high precision. LQE achieves the same high success rate while matching broad synonyms (like *"carcinoma"* for *"cancer"*).
+    *   Vector search failed (33.33% success) because embeddings prioritize semantic overlaps (e.g., retrieving leukemia papers for *"Dragon's Blood"* or general calcium papers for *"Milk and Bones"*).
+    *   Lexical search restricts matching to actual entity names, maintaining high precision. LQE v2 matches LQE v1's maximum success rate while pruning domain-specific high-frequency terminology via global corpus-level Document Frequency (DF) filtering.
 
 ---
 

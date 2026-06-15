@@ -67,8 +67,9 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 | Retrieval Method | QA Accuracy | Avg. Context Footprint (Tokens) | Notes / Behavior |
 |---|---|---|---|
 | **Vanilla Grep** | **70.0%** | 717.1 | Highly precise when queries exactly match corpus words. Fails on mismatches. |
-| **LQE-Grep (Ours)** | **60.0%** | 4,049.6 | High recall. Suffered from over-expansion of common words (e.g. matching "name" or "shop" in a 100k-token corpus). |
-| **Vector Search** | **0.0%** | 53.2 | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
+| **LQE-Grep (v1)** | **60.0%** | 3,933.1 | High recall but suffers from severe token inflation due to over-expansion of common terms. |
+| **LQE-Grep v2 (Ours)** | **60.0%** | **2,897.7** | **Matches maximum recall while reducing token footprint by 26.3%** via local dialogue turn-frequency filtering. |
+| **Vector Search** | **0.0%** | **53.2** | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
 
 ### Benchmark C: BEIR NFCorpus Medical Dataset
 We evaluated the retrievers on 15 test queries from the **BEIR NFCorpus** medical abstracts dataset, measuring **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
