@@ -102,7 +102,10 @@ Because CLI agents default to raw, local lexical utilities (like ripgrep) for fi
 *   [real_dataset_eval.py](real_dataset_eval.py): Benchmarks the methods over the real-world LongMemEval conversational corpus.
 *   [nfcorpus_eval.py](nfcorpus_eval.py): Benchmarks the methods on the BEIR NFCorpus medical search dataset.
 *   [plot_results.py](plot_results.py): Generates performance graphs from JSON results.
-*   [presentation.md](presentation.md) / [presentation.tex](presentation.tex): Slide decks outlining the research background, motivated gaps, pilot and real-world results, and TikZ visual schematics.
+*   [docs/presentation.md](docs/presentation.md) / [docs/presentation.tex](docs/presentation.tex): Slide decks outlining the research background, motivated gaps, pilot and real-world results, and TikZ visual schematics.
+*   [docs/research_proposal.tex](docs/research_proposal.tex): Technical LaTeX research proposal detailing LQE motivation, design, and pilot evaluation metrics.
+*   [docs/experiment_results.md](docs/experiment_results.md): Detailed markdown log containing analysis and findings from the evaluation.
+*   [docs/2605.15184v1.pdf](docs/2605.15184v1.pdf): Baseline study paper ("Is Grep All You Need?").
 
 ---
 
@@ -111,3 +114,13 @@ Because CLI agents default to raw, local lexical utilities (like ripgrep) for fi
 1. **Conservative LQE Expansion (LQE v2)**: Restrict regex query expansion to filter out high-frequency stop-words (like "name", "shop", "color") which cause massive context inflation in large corpora.
 2. **Evaluation Scale**: Run the full 500-question LongMemEval dataset and the complete 3,000+ document BEIR NFCorpus benchmark.
 3. **Paper Drafting**: Outline a standard LaTeX layout comparing lexical regex constraints vs. dense embedding similarity in production agent loops.
+
+
+
+Multimodal models + search methods
+
+Check out claude code, openclaw to see if grep is being combined with semantic search.
+
+(thnink about including decomposition if possible)
+
+Text-to-Grep idea... explore ideas, datasets..
