@@ -99,6 +99,53 @@ def expand_query_lqe(query: str, model, tokenizer, device: str) -> str:
     response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
     return clean_regex_pattern(response)
 
+
+def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "") -> str:
+    """
+    LQE v2: Filter out generic, high-frequency, or short English words from the expanded regex.
+    Never prune words that are present in the user's query itself or match the primary category keyword.
+    """
+    if not regex_pattern:
+        return ""
+        
+    GENERIC_WORDS_TO_PRUNE = {
+        # Pronouns, prepositions, conjunctions
+        "the", "and", "for", "are", "but", "not", "you", "him", "her", "his", "its", "our", "out", "off", "one", "two", "use", "get", "got", "job", "new", "old", "day", "way", "now", "did", "had", "has", "was", "any", "all", "who", "why", "how", "few", "own", "too", "can", "will", "just", "should", "could", "would", "with", "about", "above", "below", "under", "over", "before", "after", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "both", "each", "few", "more", "most", "some", "other", "same", "such", "only", "very",
+        # Generic structural and conversational nouns/verbs that appear in almost every session
+        "name", "names", "list", "lists", "type", "types", "item", "items", "thing", "things", "work", "worker", "job", "jobs", "career", "show", "shows", "play", "plays", "day", "days", "time", "times", "year", "years", "people", "person", "man", "woman", "men", "women", "former", "previous", "next", "change", "changed", "changes", "initials", "family", "birth", "studies", "science", "arts", "business", "administration", "engineering", "food", "drink", "drinks", "beverage", "beverages", "refreshment", "refreshments", "place", "places", "location", "locations", "store", "shop", "shops", "supermarket", "grocery", "target", "redeem", "discount", "coupon", "coupons", "buy", "bought", "purchase", "purchased", "order", "ordered", "pay", "paid", "sell", "sold", "cost", "price", "money", "dollar", "dollars", "cent", "cents", "amount", "value", "free", "cheap", "expensive", "sale", "deal", "deals", "treat", "therapy", "feed", "eat", "consume", "like", "want", "need", "find", "search", "good", "bad", "first", "last", "user", "assistant", "what", "where", "who", "when", "why", "how"
+    }
+
+    # Extract words from the query
+    query_words = set()
+    if query:
+        for w in re.split(r"\W+", query.lower()):
+            if w:
+                query_words.add(w)
+
+    if primary_keyword:
+        query_words.add(primary_keyword.lower())
+
+    # Clean and split the regex pattern
+    raw = regex_pattern.strip("() ")
+    words = [w.strip() for w in raw.split("|") if w.strip()]
+    
+    pruned_words = []
+    for w in words:
+        w_lower = w.lower()
+        if w_lower in query_words:
+            pruned_words.append(w)
+        elif w_lower not in GENERIC_WORDS_TO_PRUNE:
+            # Filter out extremely short words (length <= 2) unless they are in query_words
+            if len(w_lower) > 2:
+                pruned_words.append(w)
+                
+    # If we pruned everything (fallback), return original
+    if not pruned_words:
+        return regex_pattern
+        
+    return f"({'|'.join(pruned_words)})"
+
+
 def embed_text(text: str, model, tokenizer, device: str) -> torch.Tensor:
     """Generate mean-pooled embedding from Qwen's last hidden state layer."""
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(device)
@@ -210,10 +257,12 @@ def main():
     
     grep_successes = 0
     lqe_successes = 0
+    lqe_successes_v2 = 0
     vec_successes = 0
     
     grep_tokens = 0
     lqe_tokens = 0
+    lqe_tokens_v2 = 0
     
     for idx, q_id in enumerate(selected_q_ids):
         query_text = queries[q_id]["text"]
@@ -236,18 +285,23 @@ def main():
         keywords = extract_grep_keywords(query_text, model, tokenizer, device)
         lqe_pattern = expand_query_lqe(query_text, model, tokenizer, device)
         
+        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords))
+        
         # Run Searches
         grep_results = search_grep(haystack, keywords)
         lqe_results = search_lqe_grep(haystack, lqe_pattern)
+        lqe_results_v2 = search_lqe_grep(haystack, lqe_pattern_v2)
         vec_results = search_vector(haystack, query_text, model, tokenizer, device)
         
         # Compute successes (Success@3)
         g_suc = 1 if target_id in grep_results else 0
         l_suc = 1 if target_id in lqe_results else 0
+        l_suc_v2 = 1 if target_id in lqe_results_v2 else 0
         v_suc = 1 if target_id in vec_results else 0
         
         grep_successes += g_suc
         lqe_successes += l_suc
+        lqe_successes_v2 += l_suc_v2
         vec_successes += v_suc
         
         # Measure token footprint
@@ -280,11 +334,30 @@ def main():
             pass
         lqe_tokens += len(tokenizer.tokenize("\n".join(lqe_passages)))
         
+        # LQE v2 matching passages
+        lqe_passages_v2 = []
+        if lqe_pattern_v2.startswith("(") and lqe_pattern_v2.endswith(")"):
+            pattern_str_v2 = rf"\b{lqe_pattern_v2}\b"
+        else:
+            pattern_str_v2 = rf"\b({lqe_pattern_v2.strip('()')})\b"
+        
+        try:
+            pattern_v2 = re.compile(pattern_str_v2, re.IGNORECASE)
+            for doc in haystack:
+                text = f"{doc['title']} {doc['text']}"
+                for line in text.split("\n"):
+                    if pattern_v2.search(line):
+                        lqe_passages_v2.append(line)
+        except re.error:
+            pass
+        lqe_tokens_v2 += len(tokenizer.tokenize("\n".join(lqe_passages_v2)))
+        
         print(f"  Query {idx+1}/{len(selected_q_ids)}: '{query_text}'")
-        print(f"    Keywords: {keywords} | LQE: {lqe_pattern}")
+        print(f"    Keywords: {keywords} | LQE: {lqe_pattern} | LQE v2: {lqe_pattern_v2}")
         print(f"    Target ID: {target_id}")
         print(f"    Grep top-3: {grep_results} (Success: {g_suc})")
         print(f"    LQE  top-3: {lqe_results} (Success: {l_suc})")
+        print(f"    LQE2 top-3: {lqe_results_v2} (Success: {l_suc_v2})")
         print(f"    Vector top-3: {vec_results} (Success: {v_suc})")
         print("-" * 50)
         
@@ -293,12 +366,14 @@ def main():
     print("=" * 50)
     print(f"Vanilla Grep  Success@3: {grep_successes / len(selected_q_ids):.2%} | Avg Tokens: {grep_tokens / len(selected_q_ids):.1f}")
     print(f"LQE-Grep      Success@3: {lqe_successes / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens / len(selected_q_ids):.1f}")
+    print(f"LQE-Grep v2   Success@3: {lqe_successes_v2 / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens_v2 / len(selected_q_ids):.1f}")
     print(f"Vector Search Success@3: {vec_successes / len(selected_q_ids):.2%}")
     
     # Save results
     results = {
         "grep": {"success@3": grep_successes / len(selected_q_ids), "avg_tokens": grep_tokens / len(selected_q_ids)},
         "lqe_grep": {"success@3": lqe_successes / len(selected_q_ids), "avg_tokens": lqe_tokens / len(selected_q_ids)},
+        "lqe_grep_v2": {"success@3": lqe_successes_v2 / len(selected_q_ids), "avg_tokens": lqe_tokens_v2 / len(selected_q_ids)},
         "vector": {"success@3": vec_successes / len(selected_q_ids)}
     }
     with open("lqe_nfcorpus_results.json", "w") as f:

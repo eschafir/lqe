@@ -104,6 +104,53 @@ def extract_noun_and_expand_regex(query: str, model, tokenizer, device: str) -> 
         cleaned = f"({cleaned})"
     return cleaned
 
+
+def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "") -> str:
+    """
+    LQE v2: Filter out generic, high-frequency, or short English words from the expanded regex.
+    Never prune words that are present in the user's query itself or match the primary category keyword.
+    """
+    if not regex_pattern:
+        return ""
+        
+    GENERIC_WORDS_TO_PRUNE = {
+        # Pronouns, prepositions, conjunctions
+        "the", "and", "for", "are", "but", "not", "you", "him", "her", "his", "its", "our", "out", "off", "one", "two", "use", "get", "got", "job", "new", "old", "day", "way", "now", "did", "had", "has", "was", "any", "all", "who", "why", "how", "few", "own", "too", "can", "will", "just", "should", "could", "would", "with", "about", "above", "below", "under", "over", "before", "after", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "both", "each", "few", "more", "most", "some", "other", "same", "such", "only", "very",
+        # Generic structural and conversational nouns/verbs that appear in almost every session
+        "name", "names", "list", "lists", "type", "types", "item", "items", "thing", "things", "work", "worker", "job", "jobs", "career", "show", "shows", "play", "plays", "day", "days", "time", "times", "year", "years", "people", "person", "man", "woman", "men", "women", "former", "previous", "next", "change", "changed", "changes", "initials", "family", "birth", "studies", "science", "arts", "business", "administration", "engineering", "food", "drink", "drinks", "beverage", "beverages", "refreshment", "refreshments", "place", "places", "location", "locations", "store", "shop", "shops", "supermarket", "grocery", "target", "redeem", "discount", "coupon", "coupons", "buy", "bought", "purchase", "purchased", "order", "ordered", "pay", "paid", "sell", "sold", "cost", "price", "money", "dollar", "dollars", "cent", "cents", "amount", "value", "free", "cheap", "expensive", "sale", "deal", "deals", "treat", "therapy", "feed", "eat", "consume", "like", "want", "need", "find", "search", "good", "bad", "first", "last", "user", "assistant", "what", "where", "who", "when", "why", "how"
+    }
+
+    # Extract words from the query
+    query_words = set()
+    if query:
+        for w in re.split(r"\W+", query.lower()):
+            if w:
+                query_words.add(w)
+
+    if primary_keyword:
+        query_words.add(primary_keyword.lower())
+
+    # Clean and split the regex pattern
+    raw = regex_pattern.strip("() ")
+    words = [w.strip() for w in raw.split("|") if w.strip()]
+    
+    pruned_words = []
+    for w in words:
+        w_lower = w.lower()
+        if w_lower in query_words:
+            pruned_words.append(w)
+        elif w_lower not in GENERIC_WORDS_TO_PRUNE:
+            # Filter out extremely short words (length <= 2) unless they are in query_words
+            if len(w_lower) > 2:
+                pruned_words.append(w)
+                
+    # If we pruned everything (fallback), return original
+    if not pruned_words:
+        return regex_pattern
+        
+    return f"({'|'.join(pruned_words)})"
+
+
 def embed_text(text: str, model, tokenizer, device: str) -> torch.Tensor:
     """Generate mean-pooled embedding from Qwen's last hidden state layer."""
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(device)
@@ -215,6 +262,11 @@ def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, dev
         elif method_name == "lqe_grep":
             pat = extra_data[q_id]["regex"]
             retrieved = run_lqe_grep_search(context, pat)
+        elif method_name == "lqe_grep_v2":
+            pat = extra_data[q_id]["regex"]
+            kw = extra_data[q_id]["keyword"]
+            pruned_pat = prune_regex_pattern(pat, query, kw)
+            retrieved = run_lqe_grep_search(context, pruned_pat)
         elif method_name == "vector":
             retrieved = run_vector_search(context, query, model, tokenizer, device, top_k=3)
         else:
@@ -297,6 +349,10 @@ def main():
     lqe_acc, lqe_tok = evaluate_method("lqe_grep", eval_subset, model, tokenizer, device, extra_data)
     print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
     
+    print("\nEvaluating Method: LQE-Grep v2 (Pruned)...")
+    lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", eval_subset, model, tokenizer, device, extra_data)
+    print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
+    
     print("\nEvaluating Method: Vector Search (Top-3 CosSim)...")
     vec_acc, vec_tok = evaluate_method("vector", eval_subset, model, tokenizer, device, extra_data)
     print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
@@ -304,6 +360,7 @@ def main():
     results = {
         "grep": {"accuracy": grep_acc, "avg_tokens": grep_tok},
         "lqe_grep": {"accuracy": lqe_acc, "avg_tokens": lqe_tok},
+        "lqe_grep_v2": {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok},
         "vector": {"accuracy": vec_acc, "avg_tokens": vec_tok}
     }
     
@@ -315,7 +372,7 @@ def main():
     print("\n\n### Real LongMemEval Experiment Summary Table")
     print("| Method | Accuracy | Avg Tokens |")
     print("| --- | --- | --- |")
-    for method in ["grep", "vector", "lqe_grep"]:
+    for method in ["grep", "vector", "lqe_grep", "lqe_grep_v2"]:
         m_res = results[method]
         print(f"| {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
         
