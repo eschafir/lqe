@@ -100,10 +100,11 @@ def expand_query_lqe(query: str, model, tokenizer, device: str) -> str:
     return clean_regex_pattern(response)
 
 
-def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "") -> str:
+def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "", corpus_df: dict = None, total_docs: int = 1, threshold: float = 0.05) -> str:
     """
     LQE v2: Filter out generic, high-frequency, or short English words from the expanded regex.
-    Never prune words that are present in the user's query itself or match the primary category keyword.
+    Also prunes words that appear in more than threshold% of the documents in the corpus.
+    Never prunes words that are present in the user's query itself or match the primary category keyword.
     """
     if not regex_pattern:
         return ""
@@ -123,7 +124,9 @@ def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: st
                 query_words.add(w)
 
     if primary_keyword:
-        query_words.add(primary_keyword.lower())
+        for w in re.split(r"\W+", primary_keyword.lower()):
+            if w:
+                query_words.add(w)
 
     # Clean and split the regex pattern
     raw = regex_pattern.strip("() ")
@@ -134,10 +137,14 @@ def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: st
         w_lower = w.lower()
         if w_lower in query_words:
             pruned_words.append(w)
-        elif w_lower not in GENERIC_WORDS_TO_PRUNE:
-            # Filter out extremely short words (length <= 2) unless they are in query_words
-            if len(w_lower) > 2:
-                pruned_words.append(w)
+        elif w_lower in GENERIC_WORDS_TO_PRUNE:
+            continue
+        elif len(w_lower) <= 2:
+            continue
+        elif corpus_df and (corpus_df.get(w_lower, 0) / total_docs) > threshold:
+            continue
+        else:
+            pruned_words.append(w)
                 
     # If we pruned everything (fallback), return original
     if not pruned_words:
@@ -229,6 +236,17 @@ def main():
             doc = json.loads(line)
             corpus[doc["_id"]] = doc
             
+    # Precompute document frequencies for corpus words (global stopword filtering)
+    print("Computing corpus word frequencies...")
+    import collections
+    corpus_df = collections.Counter()
+    total_docs = len(corpus)
+    for doc in corpus.values():
+        text = f"{doc['title']} {doc['text']}".lower()
+        words = set(re.findall(r"\b[a-z]{3,}\b", text))
+        for w in words:
+            corpus_df[w] += 1
+            
     # Load queries
     print("Loading queries...")
     queries = {}
@@ -287,7 +305,7 @@ def main():
         # Pre-extract terms
         keywords = extract_grep_keywords(query_text, model, tokenizer, device) if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else []
         lqe_pattern = expand_query_lqe(query_text, model, tokenizer, device) if "lqe_grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else ""
-        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords)) if "lqe_grep_v2" in methods_to_run else ""
+        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords), corpus_df, total_docs, threshold=0.05) if "lqe_grep_v2" in methods_to_run else ""
         
         # Run Searches
         grep_results = search_grep(haystack, keywords) if "grep" in methods_to_run else []

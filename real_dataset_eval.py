@@ -105,10 +105,11 @@ def extract_noun_and_expand_regex(query: str, model, tokenizer, device: str) -> 
     return cleaned
 
 
-def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "") -> str:
+def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "", context: str = "", threshold: float = 0.05) -> str:
     """
     LQE v2: Filter out generic, high-frequency, or short English words from the expanded regex.
-    Never prune words that are present in the user's query itself or match the primary category keyword.
+    Also dynamically prunes words that appear frequently in the target search context (local stop-words).
+    Never prunes words that are present in the user's query itself or match the primary category keyword.
     """
     if not regex_pattern:
         return ""
@@ -128,7 +129,25 @@ def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: st
                 query_words.add(w)
 
     if primary_keyword:
-        query_words.add(primary_keyword.lower())
+        for w in re.split(r"\W+", primary_keyword.lower()):
+            if w:
+                query_words.add(w)
+
+    # Build local frequency map from context
+    high_freq_words = set()
+    if context:
+        import collections
+        lines = context.split("\n")
+        total_lines = len(lines)
+        if total_lines > 10:
+            word_counts = collections.Counter()
+            for line in lines:
+                words_in_line = set(re.findall(r"\b[a-z]{3,}\b", line.lower()))
+                for w in words_in_line:
+                    word_counts[w] += 1
+            for w, count in word_counts.items():
+                if count / total_lines > threshold:
+                    high_freq_words.add(w)
 
     # Clean and split the regex pattern
     raw = regex_pattern.strip("() ")
@@ -139,10 +158,14 @@ def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: st
         w_lower = w.lower()
         if w_lower in query_words:
             pruned_words.append(w)
-        elif w_lower not in GENERIC_WORDS_TO_PRUNE:
-            # Filter out extremely short words (length <= 2) unless they are in query_words
-            if len(w_lower) > 2:
-                pruned_words.append(w)
+        elif w_lower in GENERIC_WORDS_TO_PRUNE:
+            continue
+        elif len(w_lower) <= 2:
+            continue
+        elif w_lower in high_freq_words:
+            continue
+        else:
+            pruned_words.append(w)
                 
     # If we pruned everything (fallback), return original
     if not pruned_words:
@@ -265,7 +288,7 @@ def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, dev
         elif method_name == "lqe_grep_v2":
             pat = extra_data[q_id]["regex"]
             kw = extra_data[q_id]["keyword"]
-            pruned_pat = prune_regex_pattern(pat, query, kw)
+            pruned_pat = prune_regex_pattern(pat, query, kw, context, threshold=0.05)
             retrieved = run_lqe_grep_search(context, pruned_pat)
         elif method_name == "vector":
             retrieved = run_vector_search(context, query, model, tokenizer, device, top_k=3)
