@@ -214,6 +214,7 @@ def main():
     parser.add_argument("--model", type=str, default="qwen-1.5b", help="Model key from src/models.py")
     parser.add_argument("--num-queries", type=int, default=15, help="Number of queries to evaluate")
     parser.add_argument("--haystack-size", type=int, default=50, help="Number of documents in each haystack")
+    parser.add_argument("--methods", type=str, default="grep,lqe_grep,lqe_grep_v2,vector", help="Comma-separated list of methods to run")
     args = parser.parse_args()
     
     device = best_gpu()
@@ -249,11 +250,13 @@ def main():
                 qrels[q_id].append(doc_id)
                 
     # Filter queries that have relevance labels
-    valid_q_ids = [q_id for q_id in queries.keys() if q_id in qrels and q_id in qrels]
+    valid_q_ids = [q_id for q_id in queries.keys() if q_id in qrels]
     random.seed(42)
     selected_q_ids = random.sample(valid_q_ids, min(args.num_queries, len(valid_q_ids)))
     
     print(f"\nEvaluating on {len(selected_q_ids)} test queries. Haystack size = {args.haystack_size}")
+    
+    methods_to_run = [m.strip().lower() for m in args.methods.split(",")]
     
     grep_successes = 0
     lqe_successes = 0
@@ -282,16 +285,15 @@ def main():
         random.shuffle(haystack)
         
         # Pre-extract terms
-        keywords = extract_grep_keywords(query_text, model, tokenizer, device)
-        lqe_pattern = expand_query_lqe(query_text, model, tokenizer, device)
-        
-        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords))
+        keywords = extract_grep_keywords(query_text, model, tokenizer, device) if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else []
+        lqe_pattern = expand_query_lqe(query_text, model, tokenizer, device) if "lqe_grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else ""
+        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords)) if "lqe_grep_v2" in methods_to_run else ""
         
         # Run Searches
-        grep_results = search_grep(haystack, keywords)
-        lqe_results = search_lqe_grep(haystack, lqe_pattern)
-        lqe_results_v2 = search_lqe_grep(haystack, lqe_pattern_v2)
-        vec_results = search_vector(haystack, query_text, model, tokenizer, device)
+        grep_results = search_grep(haystack, keywords) if "grep" in methods_to_run else []
+        lqe_results = search_lqe_grep(haystack, lqe_pattern) if "lqe_grep" in methods_to_run else []
+        lqe_results_v2 = search_lqe_grep(haystack, lqe_pattern_v2) if "lqe_grep_v2" in methods_to_run else []
+        vec_results = search_vector(haystack, query_text, model, tokenizer, device) if "vector" in methods_to_run else []
         
         # Compute successes (Success@3)
         g_suc = 1 if target_id in grep_results else 0
@@ -305,77 +307,94 @@ def main():
         vec_successes += v_suc
         
         # Measure token footprint
-        # Vanilla grep matching passages
-        grep_passages = []
-        for doc in haystack:
-            text = f"{doc['title']} {doc['text']}"
-            for kw in keywords:
-                pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
-                for line in text.split("\n"):
-                    if pattern.search(line):
-                        grep_passages.append(line)
-        grep_tokens += len(tokenizer.tokenize("\n".join(grep_passages)))
-        
-        # LQE matching passages
-        lqe_passages = []
-        if lqe_pattern.startswith("(") and lqe_pattern.endswith(")"):
-            pattern_str = rf"\b{lqe_pattern}\b"
-        else:
-            pattern_str = rf"\b({lqe_pattern.strip('()')})\b"
-        
-        try:
-            pattern = re.compile(pattern_str, re.IGNORECASE)
+        if "grep" in methods_to_run:
+            grep_passages = []
             for doc in haystack:
                 text = f"{doc['title']} {doc['text']}"
-                for line in text.split("\n"):
-                    if pattern.search(line):
-                        lqe_passages.append(line)
-        except re.error:
-            pass
-        lqe_tokens += len(tokenizer.tokenize("\n".join(lqe_passages)))
+                for kw in keywords:
+                    pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
+                    for line in text.split("\n"):
+                        if pattern.search(line):
+                            grep_passages.append(line)
+            grep_tokens += len(tokenizer.tokenize("\n".join(grep_passages)))
         
-        # LQE v2 matching passages
-        lqe_passages_v2 = []
-        if lqe_pattern_v2.startswith("(") and lqe_pattern_v2.endswith(")"):
-            pattern_str_v2 = rf"\b{lqe_pattern_v2}\b"
-        else:
-            pattern_str_v2 = rf"\b({lqe_pattern_v2.strip('()')})\b"
+        if "lqe_grep" in methods_to_run:
+            lqe_passages = []
+            if lqe_pattern.startswith("(") and lqe_pattern.endswith(")"):
+                pattern_str = rf"\b{lqe_pattern}\b"
+            else:
+                pattern_str = rf"\b({lqe_pattern.strip('()')})\b"
+            
+            try:
+                pattern = re.compile(pattern_str, re.IGNORECASE)
+                for doc in haystack:
+                    text = f"{doc['title']} {doc['text']}"
+                    for line in text.split("\n"):
+                        if pattern.search(line):
+                            lqe_passages.append(line)
+            except re.error:
+                pass
+            lqe_tokens += len(tokenizer.tokenize("\n".join(lqe_passages)))
         
-        try:
-            pattern_v2 = re.compile(pattern_str_v2, re.IGNORECASE)
-            for doc in haystack:
-                text = f"{doc['title']} {doc['text']}"
-                for line in text.split("\n"):
-                    if pattern_v2.search(line):
-                        lqe_passages_v2.append(line)
-        except re.error:
-            pass
-        lqe_tokens_v2 += len(tokenizer.tokenize("\n".join(lqe_passages_v2)))
+        if "lqe_grep_v2" in methods_to_run:
+            lqe_passages_v2 = []
+            if lqe_pattern_v2.startswith("(") and lqe_pattern_v2.endswith(")"):
+                pattern_str_v2 = rf"\b{lqe_pattern_v2}\b"
+            else:
+                pattern_str_v2 = rf"\b({lqe_pattern_v2.strip('()')})\b"
+            
+            try:
+                pattern_v2 = re.compile(pattern_str_v2, re.IGNORECASE)
+                for doc in haystack:
+                    text = f"{doc['title']} {doc['text']}"
+                    for line in text.split("\n"):
+                        if pattern_v2.search(line):
+                            lqe_passages_v2.append(line)
+            except re.error:
+                pass
+            lqe_tokens_v2 += len(tokenizer.tokenize("\n".join(lqe_passages_v2)))
         
         print(f"  Query {idx+1}/{len(selected_q_ids)}: '{query_text}'")
-        print(f"    Keywords: {keywords} | LQE: {lqe_pattern} | LQE v2: {lqe_pattern_v2}")
+        if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run:
+            print(f"    Keywords: {keywords}")
+        if "lqe_grep" in methods_to_run:
+            print(f"    LQE: {lqe_pattern}")
+        if "lqe_grep_v2" in methods_to_run:
+            print(f"    LQE v2: {lqe_pattern_v2}")
         print(f"    Target ID: {target_id}")
-        print(f"    Grep top-3: {grep_results} (Success: {g_suc})")
-        print(f"    LQE  top-3: {lqe_results} (Success: {l_suc})")
-        print(f"    LQE2 top-3: {lqe_results_v2} (Success: {l_suc_v2})")
-        print(f"    Vector top-3: {vec_results} (Success: {v_suc})")
+        if "grep" in methods_to_run:
+            print(f"    Grep top-3: {grep_results} (Success: {g_suc})")
+        if "lqe_grep" in methods_to_run:
+            print(f"    LQE  top-3: {lqe_results} (Success: {l_suc})")
+        if "lqe_grep_v2" in methods_to_run:
+            print(f"    LQE2 top-3: {lqe_results_v2} (Success: {l_suc_v2})")
+        if "vector" in methods_to_run:
+            print(f"    Vector top-3: {vec_results} (Success: {v_suc})")
         print("-" * 50)
         
     print("\n" + "=" * 50)
     print("NFCorpus Retrieval Evaluation Summary")
     print("=" * 50)
-    print(f"Vanilla Grep  Success@3: {grep_successes / len(selected_q_ids):.2%} | Avg Tokens: {grep_tokens / len(selected_q_ids):.1f}")
-    print(f"LQE-Grep      Success@3: {lqe_successes / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens / len(selected_q_ids):.1f}")
-    print(f"LQE-Grep v2   Success@3: {lqe_successes_v2 / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens_v2 / len(selected_q_ids):.1f}")
-    print(f"Vector Search Success@3: {vec_successes / len(selected_q_ids):.2%}")
-    
+    if "grep" in methods_to_run:
+        print(f"Vanilla Grep  Success@3: {grep_successes / len(selected_q_ids):.2%} | Avg Tokens: {grep_tokens / len(selected_q_ids):.1f}")
+    if "lqe_grep" in methods_to_run:
+        print(f"LQE-Grep      Success@3: {lqe_successes / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens / len(selected_q_ids):.1f}")
+    if "lqe_grep_v2" in methods_to_run:
+        print(f"LQE-Grep v2   Success@3: {lqe_successes_v2 / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens_v2 / len(selected_q_ids):.1f}")
+    if "vector" in methods_to_run:
+        print(f"Vector Search Success@3: {vec_successes / len(selected_q_ids):.2%}")
+        
     # Save results
-    results = {
-        "grep": {"success@3": grep_successes / len(selected_q_ids), "avg_tokens": grep_tokens / len(selected_q_ids)},
-        "lqe_grep": {"success@3": lqe_successes / len(selected_q_ids), "avg_tokens": lqe_tokens / len(selected_q_ids)},
-        "lqe_grep_v2": {"success@3": lqe_successes_v2 / len(selected_q_ids), "avg_tokens": lqe_tokens_v2 / len(selected_q_ids)},
-        "vector": {"success@3": vec_successes / len(selected_q_ids)}
-    }
+    results = {}
+    if "grep" in methods_to_run:
+        results["grep"] = {"success@3": grep_successes / len(selected_q_ids), "avg_tokens": grep_tokens / len(selected_q_ids)}
+    if "lqe_grep" in methods_to_run:
+        results["lqe_grep"] = {"success@3": lqe_successes / len(selected_q_ids), "avg_tokens": lqe_tokens / len(selected_q_ids)}
+    if "lqe_grep_v2" in methods_to_run:
+        results["lqe_grep_v2"] = {"success@3": lqe_successes_v2 / len(selected_q_ids), "avg_tokens": lqe_tokens_v2 / len(selected_q_ids)}
+    if "vector" in methods_to_run:
+        results["vector"] = {"success@3": vec_successes / len(selected_q_ids)}
+        
     with open("lqe_nfcorpus_results.json", "w") as f:
         json.dump(results, f, indent=2)
     print("Results saved to lqe_nfcorpus_results.json")

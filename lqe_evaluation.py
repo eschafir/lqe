@@ -278,6 +278,7 @@ def main():
     parser.add_argument("--model", type=str, default="qwen-1.5b", help="Model key from src/models.py")
     parser.add_argument("--num-examples", type=int, default=5, help="Number of examples per category (6 categories total)")
     parser.add_argument("--output", type=str, default=os.path.join(os.path.dirname(__file__), "lqe_results.json"), help="Path to save result JSON")
+    parser.add_argument("--methods", type=str, default="grep,lqe_grep,lqe_grep_v2,vector", help="Comma-separated list of methods to run")
     args = parser.parse_args()
     
     device = best_gpu()
@@ -299,6 +300,8 @@ def main():
         expanded_patterns[ex["id"]] = pat
         print(f"  Query ID {ex['id']} ({ex['category']}): Query = '{ex['query']}' -> Regex = {pat}")
         
+    methods_to_run = [m.strip().lower() for m in args.methods.split(",")]
+    
     # Sweep over noise levels
     for noise in noise_levels:
         print(f"\n==========================================")
@@ -306,34 +309,36 @@ def main():
         print(f"==========================================")
         
         dataset = generate_benchmark_dataset(num_examples_per_cat=args.num_examples, num_distractors=noise, base_seed=42)
+        results[str(noise)] = {}
         
         # Eval Grep
-        print("Evaluating Method: Vanilla Grep...")
-        grep_acc, grep_tok = evaluate_method("grep", dataset, model, tokenizer, device, expanded_patterns)
-        print(f"  Grep Accuracy: {grep_acc:.2%}, Avg Tokens: {grep_tok:.1f}")
-        
+        if "grep" in methods_to_run:
+            print("Evaluating Method: Vanilla Grep...")
+            grep_acc, grep_tok = evaluate_method("grep", dataset, model, tokenizer, device, expanded_patterns)
+            print(f"  Grep Accuracy: {grep_acc:.2%}, Avg Tokens: {grep_tok:.1f}")
+            results[str(noise)]["grep"] = {"accuracy": grep_acc, "avg_tokens": grep_tok}
+            
         # Eval LQE-Grep
-        print("Evaluating Method: LQE-Grep...")
-        lqe_acc, lqe_tok = evaluate_method("lqe_grep", dataset, model, tokenizer, device, expanded_patterns)
-        print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
-        
+        if "lqe_grep" in methods_to_run:
+            print("Evaluating Method: LQE-Grep...")
+            lqe_acc, lqe_tok = evaluate_method("lqe_grep", dataset, model, tokenizer, device, expanded_patterns)
+            print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
+            results[str(noise)]["lqe_grep"] = {"accuracy": lqe_acc, "avg_tokens": lqe_tok}
+            
         # Eval LQE-Grep v2
-        print("Evaluating Method: LQE-Grep v2 (Pruned)...")
-        lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", dataset, model, tokenizer, device, expanded_patterns)
-        print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
-        
+        if "lqe_grep_v2" in methods_to_run:
+            print("Evaluating Method: LQE-Grep v2 (Pruned)...")
+            lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", dataset, model, tokenizer, device, expanded_patterns)
+            print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
+            results[str(noise)]["lqe_grep_v2"] = {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok}
+            
         # Eval Vector
-        print("Evaluating Method: Vector Search (Hidden States CosSim)...")
-        vec_acc, vec_tok = evaluate_method("vector", dataset, model, tokenizer, device, expanded_patterns)
-        print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
-        
-        results[str(noise)] = {
-            "grep": {"accuracy": grep_acc, "avg_tokens": grep_tok},
-            "lqe_grep": {"accuracy": lqe_acc, "avg_tokens": lqe_tok},
-            "lqe_grep_v2": {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok},
-            "vector": {"accuracy": vec_acc, "avg_tokens": vec_tok}
-        }
-        
+        if "vector" in methods_to_run:
+            print("Evaluating Method: Vector Search (Hidden States CosSim)...")
+            vec_acc, vec_tok = evaluate_method("vector", dataset, model, tokenizer, device, expanded_patterns)
+            print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
+            results[str(noise)]["vector"] = {"accuracy": vec_acc, "avg_tokens": vec_tok}
+            
     # Write JSON results
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     with open(args.output, "w") as f:
@@ -344,9 +349,10 @@ def main():
     print("| Noise (Distractors) | Method | Accuracy | Avg Tokens |")
     print("| --- | --- | --- | --- |")
     for noise in noise_levels:
-        for method in ["grep", "lqe_grep", "lqe_grep_v2", "vector"]:
-            m_res = results[str(noise)][method]
-            print(f"| {noise} | {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
+        for method in methods_to_run:
+            if method in results[str(noise)]:
+                m_res = results[str(noise)][method]
+                print(f"| {noise} | {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
             
     print(f"\nResults saved to {args.output}")
 

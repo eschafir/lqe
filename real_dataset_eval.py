@@ -301,6 +301,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="qwen-1.5b", help="Model key from src/models.py")
     parser.add_argument("--num-examples", type=int, default=10, help="Number of questions to evaluate")
+    parser.add_argument("--methods", type=str, default="grep,lqe_grep,lqe_grep_v2,vector", help="Comma-separated list of methods to run")
     args = parser.parse_args()
     
     device = best_gpu()
@@ -339,31 +340,33 @@ def main():
         print(f"    Keyword = '{kw}' | Regex = '{pat}'")
         
     results = {}
+    methods_to_run = [m.strip().lower() for m in args.methods.split(",")]
     
     # Run evaluations
-    print("\nEvaluating Method: Vanilla Grep...")
-    grep_acc, grep_tok = evaluate_method("grep", eval_subset, model, tokenizer, device, extra_data)
-    print(f"  Grep Accuracy: {grep_acc:.2%}, Avg Tokens: {grep_tok:.1f}")
-    
-    print("\nEvaluating Method: LQE-Grep...")
-    lqe_acc, lqe_tok = evaluate_method("lqe_grep", eval_subset, model, tokenizer, device, extra_data)
-    print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
-    
-    print("\nEvaluating Method: LQE-Grep v2 (Pruned)...")
-    lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", eval_subset, model, tokenizer, device, extra_data)
-    print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
-    
-    print("\nEvaluating Method: Vector Search (Top-3 CosSim)...")
-    vec_acc, vec_tok = evaluate_method("vector", eval_subset, model, tokenizer, device, extra_data)
-    print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
-    
-    results = {
-        "grep": {"accuracy": grep_acc, "avg_tokens": grep_tok},
-        "lqe_grep": {"accuracy": lqe_acc, "avg_tokens": lqe_tok},
-        "lqe_grep_v2": {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok},
-        "vector": {"accuracy": vec_acc, "avg_tokens": vec_tok}
-    }
-    
+    if "grep" in methods_to_run:
+        print("\nEvaluating Method: Vanilla Grep...")
+        grep_acc, grep_tok = evaluate_method("grep", eval_subset, model, tokenizer, device, extra_data)
+        print(f"  Grep Accuracy: {grep_acc:.2%}, Avg Tokens: {grep_tok:.1f}")
+        results["grep"] = {"accuracy": grep_acc, "avg_tokens": grep_tok}
+        
+    if "lqe_grep" in methods_to_run:
+        print("\nEvaluating Method: LQE-Grep...")
+        lqe_acc, lqe_tok = evaluate_method("lqe_grep", eval_subset, model, tokenizer, device, extra_data)
+        print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
+        results["lqe_grep"] = {"accuracy": lqe_acc, "avg_tokens": lqe_tok}
+        
+    if "lqe_grep_v2" in methods_to_run:
+        print("\nEvaluating Method: LQE-Grep v2 (Pruned)...")
+        lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", eval_subset, model, tokenizer, device, extra_data)
+        print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
+        results["lqe_grep_v2"] = {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok}
+        
+    if "vector" in methods_to_run:
+        print("\nEvaluating Method: Vector Search (Top-3 CosSim)...")
+        vec_acc, vec_tok = evaluate_method("vector", eval_subset, model, tokenizer, device, extra_data)
+        print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
+        results["vector"] = {"accuracy": vec_acc, "avg_tokens": vec_tok}
+        
     # Save results
     output_path = "lqe_real_results.json"
     with open(output_path, "w") as f:
@@ -372,9 +375,10 @@ def main():
     print("\n\n### Real LongMemEval Experiment Summary Table")
     print("| Method | Accuracy | Avg Tokens |")
     print("| --- | --- | --- |")
-    for method in ["grep", "vector", "lqe_grep", "lqe_grep_v2"]:
-        m_res = results[method]
-        print(f"| {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
+    for method in methods_to_run:
+        if method in results:
+            m_res = results[method]
+            print(f"| {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
         
     print(f"\nResults saved to {output_path}")
 
