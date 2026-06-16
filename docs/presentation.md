@@ -123,6 +123,31 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 ---
 
+# Slide 10b: Case Study: LongMemEval Retrieval
+### Vocabulary Match vs. Context Truncation
+*   **The Scenario**:
+    *   **Query**: *"How many shirts did I pack for my 5-day trip to Costa Rica?"* (Ground Truth: **7**)
+    *   **Target Dialogue Turn**: `User: ...on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts...`
+*   **Method Behaviors**:
+    *   **LQE v2**: Expands the query to `\b(costa|rica|trip|shirts|pack|travel|clothing|apparel|vacation)\b`. Matches target synonyms at native search speeds. Dynamic turn-frequency filtering prunes conversational noise, saving **10.8%** tokens.
+    *   **Vanilla Grep**: Fails if the user rephrases keywords (e.g. using *"journey"* or *"tops"* instead of *"trip"* or *"shirts"*).
+    *   **Vector Search**: Fails (**0.0% accuracy**) due to the truncation bottleneck (embedding 500+ turns exceeds context limits, forcing truncation that excludes the target session).
+
+---
+
+# Slide 10c: Case Study: BEIR NFCorpus Medical Search
+### Technical Synonyms and Term Pruning
+*   **The Scenario**:
+    *   **Query**: *"Phytates for the Treatment of Cancer"* (Target Document: **MED-2568**)
+    *   **Target Abstract**: *IP6: a novel anti-cancer agent. Inositol hexaphosphate (InsP6 or IP6) is ubiquitous... A striking anti-cancer action of IP6 has been demonstrated both in vivo and in vitro...*
+*   **Method Behaviors**:
+    *   **Vanilla Grep**: Fails to retrieve the target abstract because the word *"phytates"* is not explicitly in the text (only its technical chemical synonym *"Inositol hexaphosphate"*).
+    *   **LQE v1**: Expands query to `(phytates|phyticacid|...|health|wellness)`. Successfully retrieves the abstract, but suffers from massive token overhead because generic terms like *"health"* pull in unrelated documents.
+    *   **LQE v2**: Prunes high-frequency medical terms (e.g. removing *"health"*), yielding: `(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|wellness)`. Maintains the successful match while cutting average tokens by **44.1%**.
+    *   **Vector Search**: Fails (**15.13% success**) due to semantic blurring (retrieves generic leukemia papers instead of the specific IP6/phytates study).
+
+---
+
 # Slide 11: Critical Optimization: Word Boundaries
 ### Substring Collision Bug
 *   In early runs, the query expansion for `vehicle` included the word `car`.

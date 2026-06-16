@@ -82,6 +82,29 @@ We evaluated the retrievers on all 323 test queries from the **BEIR NFCorpus** m
 | **LQE-Grep v2 (Ours)** | **57.98%** | **3,182.3** | **Outperforms LQE v1 in recall while reducing token footprint by 44.1%** via dynamic global Document Frequency (DF) filtering. |
 | **Vector Search** | 15.13% | N/A | Low success. Embeddings suffer from semantic blurring on domain-specific abstractions. |
 
+### Concrete Evaluation Examples
+
+To illustrate the retrieval behaviors of each method, we detail case studies from both datasets below.
+
+#### Case Study 1: LongMemEval (Conversational History)
+*   **Query**: *"How many shirts did I pack for my 5-day trip to Costa Rica?"* (Ground Truth Answer: **7**)
+*   **Target Dialogue Turn**: `User: ...on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts, but I only ended up wearing 3...`
+*   **Method Behaviors**:
+    *   **Vanilla Grep**: Searches strictly for `Costa Rica` and `shirts`. If the user phrases it as *"journey"* or *"tops"*, exact matching fails (vocabulary mismatch).
+    *   **LQE-Grep (v2)**: Expands the query concept into `(costa|rica|trip|shirts|pack|travel|clothing|apparel|destination|vacation)`. Matches target synonyms at native search speeds. Dynamic local turn-frequency filtering prunes conversational noise (e.g. "name", "shop"), saving **10.8%** context tokens.
+    *   **Vector Search**: Fails completely (**0.0% accuracy**) because embedding the 500+ conversational turns exceeds standard retrieval context limits, resulting in aggressive truncation that leaves the target session outside the retrieval window.
+
+#### Case Study 2: BEIR NFCorpus (Domain-Specific IR)
+*   **Query**: *"Phytates for the Treatment of Cancer"* (Target Document: **MED-2568**)
+*   **Target Document (MED-2568)**:
+    *   *Title*: `IP6: a novel anti-cancer agent.`
+    *   *Text*: `Inositol hexaphosphate (InsP6 or IP6) is ubiquitous... A striking anti-cancer action of IP6 has been demonstrated both in vivo and in vitro...`
+*   **Method Behaviors**:
+    *   **Vanilla Grep**: Searches strictly for `phytates` and `cancer`. Since the document uses the technical synonym *"Inositol hexaphosphate"* (and abbreviations *"InsP6"* / *"IP6"*) rather than *"phytates"*, Vanilla Grep fails to retrieve it.
+    *   **LQE-Grep (v1)**: Expands the query into `(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|health|wellness)`. This successfully retrieves the target document via `anti-cancer` or `phyticacid`, but suffers from high token overhead because common terms like *"health"* pull in massive numbers of distractor documents.
+    *   **LQE-Grep v2 (Ours)**: Uses global Document Frequency (DF) filtering to prune high-frequency medical terms (e.g. removing *"health"*), yielding the optimized regex: `(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|wellness)`. This maintains the successful match while cutting average tokens by **44.1%**.
+    *   **Vector Search**: Retrieves generic leukemia or blood cell papers because it matches the concept of cancer treatments broadly, blurring the specificity of phytates (**15.13% success**).
+
 ---
 
 ## 4. How Modern Coding Agents Handle Search

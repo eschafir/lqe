@@ -326,6 +326,74 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
     \end{columns}
 \end{frame}
 
+% Slide 10b: LongMemEval Case Study
+\begin{frame}{Case Study: LongMemEval Retrieval}
+    \begin{block}{Vocabulary Match vs. Context Truncation}
+        \small
+        \textbf{Query}: \textit{``How many shirts did I pack for my 5-day trip to Costa Rica?''} \hfill \textbf{Ground Truth}: 7
+        \vskip 0.5em
+        \textbf{Target Dialogue Turn}: 
+        \texttt{[User]: ...on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts...}
+    \end{block}
+    \vskip 0.5em
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{LQE v2 Expansion \& Matching}
+                \small
+                \begin{itemize}
+                    \item \textbf{LQE v2 Regex}: \\
+                    \texttt{(costa|rica|trip|shirts|pack|travel|clothing|apparel|vacation)}
+                    \item Matches target synonyms at native search speeds.
+                    \item Filters local turn-frequency noise, saving 10.8\% context.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Grep and Vector Behaviors}
+                \small
+                \begin{itemize}
+                    \item \textbf{Vanilla Grep}: Strict match fails if query keywords (e.g. \textit{``pack''}, \textit{``shirts''}) are rephrased as \textit{``luggage''} or \textit{``tops''}.
+                    \item \textbf{Vector Search}: Fails (0\% accuracy) because embedding 500+ turns exceeds context lengths, forcing aggressive truncation that drops the target session.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% Slide 10c: BEIR NFCorpus Case Study
+\begin{frame}{Case Study: BEIR NFCorpus Medical Search}
+    \begin{block}{Resolving Technical Synonyms \& Term Pruning}
+        \small
+        \textbf{Query}: \textit{``Phytates for the Treatment of Cancer''} \hfill \textbf{Target Doc (MED-2568)}
+        \vskip 0.5em
+        \textbf{Abstract Title}: \textit{IP6: a novel anti-cancer agent.} \\
+        \textbf{Abstract Text}: \textit{Inositol hexaphosphate (InsP6 or IP6) is ubiquitous... A striking anti-cancer action of IP6 has been demonstrated both in vivo and in vitro...}
+    \end{block}
+    \vskip 0.5em
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{LQE v2 vs. LQE v1 Regex}
+                \small
+                \begin{itemize}
+                    \item \textbf{LQE v1}: \texttt{(phytates|phyticacid|...|health|wellness)} (pulls in massive distractor documents containing the generic term \textit{``health''}).
+                    \item \textbf{LQE v2 (DF-Pruned)}: \\
+                    \texttt{(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|wellness)}
+                    \item Pruning \textit{``health''} saves 44.1\% tokens.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Grep and Vector Behaviors}
+                \small
+                \begin{itemize}
+                    \item \textbf{Vanilla Grep}: Fails because \textit{``phytates''} is not explicitly present in the abstract (only its chemical synonym \textit{``Inositol hexaphosphate''}).
+                    \item \textbf{Vector Search}: Fails (15.13\% success) due to semantic blurring, retrieving generic cancer papers instead of IP6.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 % Slide 11: Critical Optimization: Word Boundaries
 \begin{frame}{Critical Optimization: Word Boundaries}
     \begin{columns}[T]

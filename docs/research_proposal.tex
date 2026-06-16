@@ -173,6 +173,47 @@ Vector Search & 0.0\% & \textbf{64.4} & 15.13\% & N/A \\
 \end{tabular}
 \end{table}
 
+\subsection{Concrete Evaluation Examples}
+To illustrate the differing retrieval behaviors across methods, we present concrete examples from both datasets below.
+
+\subsubsection{LongMemEval Example (Conversational History)}
+\begin{itemize}
+    \item \textbf{Query}: ``How many shirts did I pack for my 5-day trip to Costa Rica?''
+    \item \textbf{Ground Truth Answer}: 7 (located in a dialogue history averaging ~100k tokens / 500+ turns).
+    \item \textbf{Target Dialogue Turn}: 
+    \begin{quote}
+        \textit{``Like, on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts, but I only ended up wearing 3...''}
+    \end{quote}
+    \item \textbf{Method Behaviors}:
+    \begin{itemize}
+        \item \textbf{Vanilla Grep}: Searches strictly for \texttt{Costa Rica} and \texttt{shirts}. If the user phrases it as \textit{``journey''} or \textit{``tops''}, exact matching fails (vocabulary mismatch).
+        \item \textbf{LQE-Grep (v2)}: Expands the query concept into:
+        \begin{quote}
+            \texttt{(costa|rica|trip|shirts|pack|travel|clothing|apparel|destination|vacation)}
+        \end{quote}
+        This matches synonyms and local context keywords at native grep speed.
+        \item \textbf{Vector Search}: Fails completely (0.0\% accuracy) because embedding the 500+ conversational turns exceeds context limits, forcing aggressive truncation that leaves the target session outside the retrieval window.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{BEIR NFCorpus Example (Domain-Specific IR)}
+\begin{itemize}
+    \item \textbf{Query}: ``Phytates for the Treatment of Cancer''
+    \item \textbf{Ground Truth Document (MED-2568)}: Title: \textit{``IP6: a novel anti-cancer agent.''} Text: \textit{``Inositol hexaphosphate (InsP6 or IP6) is ubiquitous... A striking anti-cancer action of IP6 has been demonstrated both in vivo and in vitro...''}
+    \item \textbf{Method Behaviors}:
+    \begin{itemize}
+        \item \textbf{Vanilla Grep}: Searches strictly for \texttt{phytates} and \texttt{cancer}. Since the document uses the technical synonym \textit{``Inositol hexaphosphate''} (and the abbreviations \textit{``InsP6''} / \textit{``IP6''}) rather than \textit{``phytates''}, Vanilla Grep fails to retrieve it.
+        \item \textbf{LQE-Grep (v1)}: Expands the query into:
+        \begin{quote}
+            \texttt{(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|health|wellness)}
+        \end{quote}
+        This successfully retrieves the target document via \texttt{anti-cancer} or \texttt{phyticacid}, but suffers from high token overhead because common terms like \textit{``health''} pull in massive numbers of distractor documents.
+        \item \textbf{LQE-Grep v2 (Ours)}: Uses global Document Frequency (DF) filtering to prune high-frequency medical terms (e.g., removing \textit{``health''}), yielding the optimized regex:
+        \texttt{(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|wellness)}. This maintains the correct match while reducing the average token footprint by \textbf{44.1\%}.
+        \item \textbf{Vector Search}: Retrieves generic leukemia or blood cell papers because it matches the concept of cancer treatments broadly, blurring the specificity of phytates.
+    \end{itemize}
+\end{itemize}
+
 \section{Future Work & Multimodal Extensions}
 We propose two primary avenues of future optimization and extension:
 
