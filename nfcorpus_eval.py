@@ -293,14 +293,17 @@ def main():
         target_id = target_doc_ids[0]
         target_doc = corpus[target_id]
         
-        # Sample distractors
-        all_doc_ids = list(corpus.keys())
-        distractor_candidates = [d_id for d_id in all_doc_ids if d_id not in target_doc_ids]
-        sampled_distractors = random.sample(distractor_candidates, args.haystack_size - 1)
-        
         # Form haystack
-        haystack = [target_doc] + [corpus[d_id] for d_id in sampled_distractors]
-        random.shuffle(haystack)
+        all_doc_ids = list(corpus.keys())
+        if args.haystack_size <= 0 or args.haystack_size >= len(all_doc_ids):
+            # Search the entire corpus
+            haystack = list(corpus.values())
+        else:
+            # Sample distractors
+            distractor_candidates = [d_id for d_id in all_doc_ids if d_id not in target_doc_ids]
+            sampled_distractors = random.sample(distractor_candidates, args.haystack_size - 1)
+            haystack = [target_doc] + [corpus[d_id] for d_id in sampled_distractors]
+            random.shuffle(haystack)
         
         # Pre-extract terms
         keywords = extract_grep_keywords(query_text, model, tokenizer, device) if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else []
