@@ -9,10 +9,11 @@ import torch.nn.functional as F
 
 # Add project root to sys.path to find src.models
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
 
 from src.models import load, best_gpu
 
-def extract_single_keyword(query: str, model, tokenizer, device: str) -> str:
+def extract_single_keyword(query: str, model, tokenizer, device: str) -> tuple[str, int]:
     """Prompt the model to extract the single primary category noun/keyword from the question."""
     system_prompt = (
         "You are a precise search assistant. Your job is to extract the single primary noun or keyword "
@@ -47,12 +48,13 @@ def extract_single_keyword(query: str, model, tokenizer, device: str) -> str:
             pad_token_id=tokenizer.pad_token_id
         )
         
+    token_count = out.shape[1]
     response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
     # Simple cleanup to get a single word
     cleaned = response.split()[0].strip().strip(".,:;\"'()[]") if response else ""
-    return cleaned.lower()
+    return cleaned.lower(), token_count
 
-def extract_noun_and_expand_regex(query: str, model, tokenizer, device: str) -> str:
+def extract_noun_and_expand_regex(query: str, model, tokenizer, device: str) -> tuple[str, int]:
     """Prompt the model to expand the general category in the query into a regex pattern."""
     system_prompt = (
         "You are a precise search assistant. Your job is to extract the main noun representing a "
@@ -91,18 +93,19 @@ def extract_noun_and_expand_regex(query: str, model, tokenizer, device: str) -> 
             pad_token_id=tokenizer.pad_token_id
         )
         
+    token_count = out.shape[1]
     response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
     
     # Extract the pattern enclosed in parentheses
     match = re.search(r"(\([a-zA-Z0-9|_-]+\))", response)
     if match:
-        return match.group(1)
+        return match.group(1), token_count
     
     # Fallback cleanup
     cleaned = response.replace(" ", "").replace("\n", "")
     if not cleaned.startswith("("):
         cleaned = f"({cleaned})"
-    return cleaned
+    return cleaned, token_count
 
 
 def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "", context: str = "", threshold: float = 0.05) -> str:
@@ -239,6 +242,95 @@ def run_vector_search(context: str, query: str, model, tokenizer, device: str, t
     scores.sort(key=lambda x: x[1], reverse=True)
     return [turn for turn, _ in scores[:top_k]]
 
+
+def run_sandboxed_python_search(context: str, query: str, model, tokenizer, device: str) -> tuple[list[str], int]:
+    """ChatGPT Simulator: Prompt the model to write a Python script that searches the context for the query concept."""
+    system_prompt = (
+        "You are a python assistant. Write a short Python script that searches the multiline string variable 'context' "
+        "for lines matching the concept in the query. Your script must split 'context' into lines, identify matching lines, "
+        "and populate a global list variable named 'results' with those matching lines. Do not import any external libraries except 're'.\n"
+        "Write ONLY the executable Python code inside a ```python ``` code block. Do not write any other text or markdown."
+    )
+    user_prompt = f"Query concept: '{query}'\n\nWrite python code:"
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    
+    with torch.no_grad():
+        out = model.generate(
+            **inputs,
+            max_new_tokens=150,
+            do_sample=False,
+            pad_token_id=tokenizer.pad_token_id
+        )
+        
+    token_count = out.shape[1]
+    response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+    
+    # Extract code from ```python ... ```
+    code_match = re.search(r"```python\s*(.*?)\s*```", response, re.DOTALL)
+    if code_match:
+        code = code_match.group(1)
+    else:
+        code = response
+        
+    local_vars = {"context": context, "results": []}
+    try:
+        exec(code, {}, local_vars)
+        results = local_vars.get("results", [])
+        if not isinstance(results, list):
+            results = []
+    except Exception as e:
+        results = []
+        
+    return [str(r) for r in results], token_count
+
+
+def run_iterative_grep_search(context: str, query: str, initial_category: str, model, tokenizer, device: str) -> tuple[list[str], int]:
+    """Claude Code Simulator: Simulates a multi-turn interactive agent grep refinement loop."""
+    current_search_term = initial_category
+    matches = []
+    total_tokens = 0
+    
+    for turn in range(3):
+        matches = run_grep_search(context, current_search_term)
+        if matches:
+            break
+            
+        system_prompt = (
+            "You are a command-line search assistant. Your previous search for '{term}' returned 0 matches in the file. "
+            "Suggest ONE new specific synonym, category member, or refined search word to try. "
+            "Output ONLY the single word and nothing else."
+        )
+        user_prompt = f"Target question: {query}\nPrevious term: {current_search_term}\nNew search word:"
+        
+        messages = [
+            {"role": "system", "content": system_prompt.format(term=current_search_term)},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        
+        with torch.no_grad():
+            out = model.generate(
+                **inputs,
+                max_new_tokens=8,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id
+            )
+            
+        total_tokens += out.shape[1]
+        current_search_term = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        current_search_term = re.sub(r"\W+", "", current_search_term)
+        
+    return matches, total_tokens
+
 def ask_agent_for_answer(context_turns: list[str], question: str, model, tokenizer, device: str) -> str:
     """Prompt the agent to answer the question using the retrieved context."""
     context_text = "\n".join(context_turns) if context_turns else "No relevant context found."
@@ -267,10 +359,11 @@ def ask_agent_for_answer(context_turns: list[str], question: str, model, tokeniz
         
     return tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
-def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, device: str, extra_data: dict) -> tuple[float, float]:
+def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, device: str, extra_data: dict) -> tuple[float, float, float]:
     """Run evaluation for a specific retrieval method over the real dataset."""
     n_correct = 0
     total_tokens = 0
+    total_search_tokens = 0
     
     for ex in dataset:
         context = ex["full_context"]
@@ -278,23 +371,43 @@ def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, dev
         ref_ans = ex["answer"]
         q_id = ex["question_id"]
         
+        search_tok = 0
+        
         # 1. Retrieve
         if method_name == "grep":
             kw = extra_data[q_id]["keyword"]
             retrieved = run_grep_search(context, kw)
         elif method_name == "lqe_grep":
             pat = extra_data[q_id]["regex"]
+            search_tok = extra_data[q_id]["regex_tokens"]
             retrieved = run_lqe_grep_search(context, pat)
         elif method_name == "lqe_grep_v2":
             pat = extra_data[q_id]["regex"]
             kw = extra_data[q_id]["keyword"]
+            search_tok = extra_data[q_id]["regex_tokens"]
             pruned_pat = prune_regex_pattern(pat, query, kw, context, threshold=0.05)
             retrieved = run_lqe_grep_search(context, pruned_pat)
         elif method_name == "vector":
             retrieved = run_vector_search(context, query, model, tokenizer, device, top_k=3)
+        elif method_name == "cursor_hybrid":
+            candidates = run_vector_search(context, query, model, tokenizer, device, top_k=15)
+            pat = extra_data[q_id]["regex"]
+            kw = extra_data[q_id]["keyword"]
+            search_tok = extra_data[q_id]["regex_tokens"]
+            pruned_pat = prune_regex_pattern(pat, query, kw, context, threshold=0.05)
+            retrieved = run_lqe_grep_search("\n".join(candidates), pruned_pat)
+        elif method_name == "sandboxed_python":
+            retrieved, search_tok = run_sandboxed_python_search(context, query, model, tokenizer, device)
+        elif method_name == "iterative_grep":
+            kw = extra_data[q_id]["keyword"]
+            retrieved, search_tok = run_iterative_grep_search(context, query, kw, model, tokenizer, device)
+            # Add initial keyword extraction tokens
+            search_tok += extra_data[q_id]["keyword_tokens"]
         else:
             retrieved = []
             
+        total_search_tokens += search_tok
+        
         # 2. Measure retrieved tokens
         retrieved_text = "\n".join(retrieved)
         tokens = len(tokenizer.tokenize(retrieved_text))
@@ -311,6 +424,7 @@ def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, dev
         print(f"    Q ID {q_id}:")
         print(f"      Query: {query}")
         print(f"      Ref Ans: {ref_ans} | Pred Ans: '{pred_ans}' | Correct: {is_correct}")
+        print(f"      Search generation tokens: {search_tok}")
         print(f"      Retrieved ({len(retrieved)} lines):")
         for line in retrieved[:3]:
             print(f"        {line[:120]}...")
@@ -318,7 +432,8 @@ def evaluate_method(method_name: str, dataset: list[dict], model, tokenizer, dev
             
     avg_tokens = total_tokens / len(dataset)
     accuracy = n_correct / len(dataset)
-    return accuracy, avg_tokens
+    avg_search_tokens = total_search_tokens / len(dataset)
+    return accuracy, avg_tokens, avg_search_tokens
 
 def main():
     parser = argparse.ArgumentParser()
@@ -356,39 +471,23 @@ def main():
         ex["full_context"] = full_context
         
         # Pre-extract keywords and regex patterns
-        kw = extract_single_keyword(ex["question"], model, tokenizer, device)
-        pat = extract_noun_and_expand_regex(ex["question"], model, tokenizer, device)
-        extra_data[q_id] = {"keyword": kw, "regex": pat}
+        kw, kw_tok = extract_single_keyword(ex["question"], model, tokenizer, device)
+        pat, pat_tok = extract_noun_and_expand_regex(ex["question"], model, tokenizer, device)
+        extra_data[q_id] = {"keyword": kw, "keyword_tokens": kw_tok, "regex": pat, "regex_tokens": pat_tok}
         print(f"  Q ID {q_id}: Query = '{ex['question']}'")
-        print(f"    Keyword = '{kw}' | Regex = '{pat}'")
+        print(f"    Keyword = '{kw}' (Tokens: {kw_tok}) | Regex = '{pat}' (Tokens: {pat_tok})")
         
     results = {}
+    if args.methods == "grep,lqe_grep,lqe_grep_v2,vector":
+        args.methods = "grep,lqe_grep,lqe_grep_v2,vector,cursor_hybrid,sandboxed_python,iterative_grep"
+        
     methods_to_run = [m.strip().lower() for m in args.methods.split(",")]
     
-    # Run evaluations
-    if "grep" in methods_to_run:
-        print("\nEvaluating Method: Vanilla Grep...")
-        grep_acc, grep_tok = evaluate_method("grep", eval_subset, model, tokenizer, device, extra_data)
-        print(f"  Grep Accuracy: {grep_acc:.2%}, Avg Tokens: {grep_tok:.1f}")
-        results["grep"] = {"accuracy": grep_acc, "avg_tokens": grep_tok}
-        
-    if "lqe_grep" in methods_to_run:
-        print("\nEvaluating Method: LQE-Grep...")
-        lqe_acc, lqe_tok = evaluate_method("lqe_grep", eval_subset, model, tokenizer, device, extra_data)
-        print(f"  LQE-Grep Accuracy: {lqe_acc:.2%}, Avg Tokens: {lqe_tok:.1f}")
-        results["lqe_grep"] = {"accuracy": lqe_acc, "avg_tokens": lqe_tok}
-        
-    if "lqe_grep_v2" in methods_to_run:
-        print("\nEvaluating Method: LQE-Grep v2 (Pruned)...")
-        lqev2_acc, lqev2_tok = evaluate_method("lqe_grep_v2", eval_subset, model, tokenizer, device, extra_data)
-        print(f"  LQE-Grep v2 Accuracy: {lqev2_acc:.2%}, Avg Tokens: {lqev2_tok:.1f}")
-        results["lqe_grep_v2"] = {"accuracy": lqev2_acc, "avg_tokens": lqev2_tok}
-        
-    if "vector" in methods_to_run:
-        print("\nEvaluating Method: Vector Search (Top-3 CosSim)...")
-        vec_acc, vec_tok = evaluate_method("vector", eval_subset, model, tokenizer, device, extra_data)
-        print(f"  Vector Accuracy: {vec_acc:.2%}, Avg Tokens: {vec_tok:.1f}")
-        results["vector"] = {"accuracy": vec_acc, "avg_tokens": vec_tok}
+    for method in methods_to_run:
+        print(f"\nEvaluating Method: {method.upper()}...")
+        acc, tok, search_tok = evaluate_method(method, eval_subset, model, tokenizer, device, extra_data)
+        print(f"  {method.upper()} Accuracy: {acc:.2%}, Avg Context Tokens: {tok:.1f}, Avg Search Gen Tokens: {search_tok:.1f}")
+        results[method] = {"accuracy": acc, "avg_tokens": tok, "avg_search_tokens": search_tok}
         
     # Save results
     output_path = "lqe_real_results.json"
@@ -396,12 +495,12 @@ def main():
         json.dump(results, f, indent=2)
         
     print("\n\n### Real LongMemEval Experiment Summary Table")
-    print("| Method | Accuracy | Avg Tokens |")
-    print("| --- | --- | --- |")
+    print("| Method | Accuracy | Avg Context Tokens | Avg Search Gen Tokens |")
+    print("| --- | --- | --- | --- |")
     for method in methods_to_run:
         if method in results:
             m_res = results[method]
-            print(f"| {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} |")
+            print(f"| {method.upper()} | {m_res['accuracy']:.1%} | {m_res['avg_tokens']:.1f} | {m_res['avg_search_tokens']:.1f} |")
         
     print(f"\nResults saved to {output_path}")
 

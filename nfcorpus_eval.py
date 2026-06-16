@@ -10,10 +10,11 @@ import torch.nn.functional as F
 
 # Add project root to sys.path to find src.models
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
 
 from src.models import load, best_gpu
 
-def extract_grep_keywords(query: str, model, tokenizer, device: str) -> list[str]:
+def extract_grep_keywords(query: str, model, tokenizer, device: str) -> tuple[list[str], int]:
     """Extract 1 or 2 primary keywords from the query for Vanilla Grep."""
     system_prompt = (
         "You are a precise search assistant. Your job is to extract 1 or 2 primary, highly specific nouns or terms "
@@ -44,11 +45,12 @@ def extract_grep_keywords(query: str, model, tokenizer, device: str) -> list[str
             pad_token_id=tokenizer.pad_token_id
         )
         
+    token_count = out.shape[1]
     response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
     words = response.lower().split()
     # clean words from punctuation
     cleaned = [w.strip(".,:;\"'()[]") for w in words if len(w) > 2]
-    return cleaned[:2]
+    return cleaned[:2], token_count
 
 def clean_regex_pattern(raw_pattern: str) -> str:
     """Sanitize and format query expansion results to guarantee valid regex syntax."""
@@ -63,7 +65,7 @@ def clean_regex_pattern(raw_pattern: str) -> str:
     # Return formatted pattern
     return f"({'|'.join(parts)})"
 
-def expand_query_lqe(query: str, model, tokenizer, device: str) -> str:
+def expand_query_lqe(query: str, model, tokenizer, device: str) -> tuple[str, int]:
     """Prompt the model to expand the main concepts in the query into a regex pattern of synonyms and related terms."""
     system_prompt = (
         "You are a precise search assistant. Your job is to perform query expansion. "
@@ -96,8 +98,9 @@ def expand_query_lqe(query: str, model, tokenizer, device: str) -> str:
             pad_token_id=tokenizer.pad_token_id
         )
         
+    token_count = out.shape[1]
     response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
-    return clean_regex_pattern(response)
+    return clean_regex_pattern(response), token_count
 
 
 def prune_regex_pattern(regex_pattern: str, query: str = "", primary_keyword: str = "", corpus_df: dict = None, total_docs: int = 1, threshold: float = 0.05) -> str:
@@ -216,6 +219,111 @@ def search_vector(haystack: list[dict], query: str, model, tokenizer, device: st
     scores.sort(key=lambda x: x[1], reverse=True)
     return [doc_id for doc_id, _ in scores[:3]]
 
+
+def run_sandboxed_python_search(haystack: list[dict], query: str, model, tokenizer, device: str) -> tuple[list[str], int]:
+    """ChatGPT Simulator: Prompt the model to write a Python script that searches the documents in the haystack."""
+    system_prompt = (
+        "You are a python assistant. Write a short Python script that searches the list of dictionaries 'haystack' "
+        "(where each dictionary has '_id', 'title', and 'text' keys) for documents matching the concept in the query. "
+        "Your script must process the documents, identify matching documents, "
+        "and populate a global list variable named 'results' with their '_id' strings. Do not import any external libraries except 're'.\n"
+        "Write ONLY the executable Python code inside a ```python ``` code block. Do not write any other text or markdown."
+    )
+    user_prompt = f"Query concept: '{query}'\n\nWrite python code:"
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    
+    with torch.no_grad():
+        out = model.generate(
+            **inputs,
+            max_new_tokens=150,
+            do_sample=False,
+            pad_token_id=tokenizer.pad_token_id
+        )
+        
+    token_count = out.shape[1]
+    response = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+    
+    # Extract code from ```python ... ```
+    code_match = re.search(r"```python\s*(.*?)\s*```", response, re.DOTALL)
+    if code_match:
+        code = code_match.group(1)
+    else:
+        code = response
+        
+    local_vars = {"haystack": haystack, "results": []}
+    try:
+        exec(code, {}, local_vars)
+        results = local_vars.get("results", [])
+        if not isinstance(results, list):
+            results = []
+    except Exception as e:
+        results = []
+        
+    return [str(r) for r in results[:3]], token_count
+
+
+def run_iterative_grep_search(haystack: list[dict], query: str, initial_keywords: list[str], model, tokenizer, device: str) -> tuple[list[str], int]:
+    """Claude Code Simulator: Simulates a multi-turn interactive agent grep refinement loop over documents."""
+    current_keywords = list(initial_keywords)
+    matches = []
+    total_tokens = 0
+    
+    for turn in range(3):
+        matches = search_grep(haystack, current_keywords)
+        has_match = False
+        for doc in haystack:
+            text = f"{doc['title']} {doc['text']}"
+            for kw in current_keywords:
+                pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
+                if pattern.search(text):
+                    has_match = True
+                    break
+            if has_match:
+                break
+                
+        if has_match:
+            break
+            
+        system_prompt = (
+            "You are a command-line search assistant. Your previous search for '{terms}' returned 0 matches in the documents. "
+            "Suggest ONE new specific synonym, category member, or refined search word to try. "
+            "Output ONLY the single word and nothing else."
+        )
+        user_prompt = f"Target query: {query}\nPrevious terms: {', '.join(current_keywords)}\nNew search word:"
+        
+        messages = [
+            {"role": "system", "content": system_prompt.format(terms=', '.join(current_keywords))},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        
+        with torch.no_grad():
+            out = model.generate(
+                **inputs,
+                max_new_tokens=8,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id
+            )
+            
+        total_tokens += out.shape[1]
+        new_term = tokenizer.decode(out[0, inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        new_term = re.sub(r"\W+", "", new_term)
+        if new_term:
+            current_keywords = [new_term]
+        else:
+            break
+            
+    return search_grep(haystack, current_keywords), total_tokens
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="qwen-1.5b", help="Model key from src/models.py")
@@ -274,16 +382,17 @@ def main():
     
     print(f"\nEvaluating on {len(selected_q_ids)} test queries. Haystack size = {args.haystack_size}")
     
+    # Standardize list of methods
+    if args.methods == "grep,lqe_grep,lqe_grep_v2,vector":
+        args.methods = "grep,lqe_grep,lqe_grep_v2,vector,cursor_hybrid,sandboxed_python,iterative_grep"
+        
     methods_to_run = [m.strip().lower() for m in args.methods.split(",")]
     
-    grep_successes = 0
-    lqe_successes = 0
-    lqe_successes_v2 = 0
-    vec_successes = 0
-    
-    grep_tokens = 0
-    lqe_tokens = 0
-    lqe_tokens_v2 = 0
+    # Initialize trackers
+    results = {}
+    successes = {m: 0 for m in methods_to_run}
+    tokens = {m: 0 for m in methods_to_run}
+    search_tokens = {m: 0 for m in methods_to_run}
     
     for idx, q_id in enumerate(selected_q_ids):
         query_text = queries[q_id]["text"]
@@ -296,126 +405,111 @@ def main():
         # Form haystack
         all_doc_ids = list(corpus.keys())
         if args.haystack_size <= 0 or args.haystack_size >= len(all_doc_ids):
-            # Search the entire corpus
             haystack = list(corpus.values())
         else:
-            # Sample distractors
             distractor_candidates = [d_id for d_id in all_doc_ids if d_id not in target_doc_ids]
             sampled_distractors = random.sample(distractor_candidates, args.haystack_size - 1)
             haystack = [target_doc] + [corpus[d_id] for d_id in sampled_distractors]
             random.shuffle(haystack)
         
-        # Pre-extract terms
-        keywords = extract_grep_keywords(query_text, model, tokenizer, device) if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else []
-        lqe_pattern = expand_query_lqe(query_text, model, tokenizer, device) if "lqe_grep" in methods_to_run or "lqe_grep_v2" in methods_to_run else ""
-        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords), corpus_df, total_docs, threshold=0.05) if "lqe_grep_v2" in methods_to_run else ""
+        # Pre-extract terms and track search generation tokens
+        keywords, kw_tok = extract_grep_keywords(query_text, model, tokenizer, device)
+        lqe_pattern, pat_tok = expand_query_lqe(query_text, model, tokenizer, device)
+        lqe_pattern_v2 = prune_regex_pattern(lqe_pattern, query_text, " ".join(keywords), corpus_df, total_docs, threshold=0.05)
         
-        # Run Searches
-        grep_results = search_grep(haystack, keywords) if "grep" in methods_to_run else []
-        lqe_results = search_lqe_grep(haystack, lqe_pattern) if "lqe_grep" in methods_to_run else []
-        lqe_results_v2 = search_lqe_grep(haystack, lqe_pattern_v2) if "lqe_grep_v2" in methods_to_run else []
-        vec_results = search_vector(haystack, query_text, model, tokenizer, device) if "vector" in methods_to_run else []
+        print(f"\nQuery {idx+1}/{len(selected_q_ids)}: '{query_text}'")
+        print(f"  Keywords: {keywords} (Tokens: {kw_tok})")
+        print(f"  LQE: {lqe_pattern} (Tokens: {pat_tok})")
+        print(f"  Target ID: {target_id}")
         
-        # Compute successes (Success@3)
-        g_suc = 1 if target_id in grep_results else 0
-        l_suc = 1 if target_id in lqe_results else 0
-        l_suc_v2 = 1 if target_id in lqe_results_v2 else 0
-        v_suc = 1 if target_id in vec_results else 0
-        
-        grep_successes += g_suc
-        lqe_successes += l_suc
-        lqe_successes_v2 += l_suc_v2
-        vec_successes += v_suc
-        
-        # Measure token footprint
-        if "grep" in methods_to_run:
-            grep_passages = []
-            for doc in haystack:
-                text = f"{doc['title']} {doc['text']}"
-                for kw in keywords:
-                    pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
-                    for line in text.split("\n"):
-                        if pattern.search(line):
-                            grep_passages.append(line)
-            grep_tokens += len(tokenizer.tokenize("\n".join(grep_passages)))
-        
-        if "lqe_grep" in methods_to_run:
-            lqe_passages = []
-            if lqe_pattern.startswith("(") and lqe_pattern.endswith(")"):
-                pattern_str = rf"\b{lqe_pattern}\b"
-            else:
-                pattern_str = rf"\b({lqe_pattern.strip('()')})\b"
+        for method in methods_to_run:
+            search_tok = 0
             
-            try:
-                pattern = re.compile(pattern_str, re.IGNORECASE)
+            if method == "grep":
+                res = search_grep(haystack, keywords)
+            elif method == "lqe_grep":
+                res = search_lqe_grep(haystack, lqe_pattern)
+                search_tok = pat_tok
+            elif method == "lqe_grep_v2":
+                res = search_lqe_grep(haystack, lqe_pattern_v2)
+                search_tok = pat_tok
+            elif method == "vector":
+                res = search_vector(haystack, query_text, model, tokenizer, device)
+            elif method == "cursor_hybrid":
+                candidates = search_vector(haystack, query_text, model, tokenizer, device)[:15]
+                # Filter haystack
+                cand_docs = [doc for doc in haystack if doc["_id"] in candidates]
+                res = search_lqe_grep(cand_docs, lqe_pattern_v2)
+                search_tok = pat_tok
+            elif method == "sandboxed_python":
+                res, search_tok = run_sandboxed_python_search(haystack, query_text, model, tokenizer, device)
+            elif method == "iterative_grep":
+                res, search_tok = run_iterative_grep_search(haystack, query_text, keywords, model, tokenizer, device)
+                search_tok += kw_tok
+            else:
+                res = []
+                
+            is_success = 1 if target_id in res else 0
+            successes[method] += is_success
+            search_tokens[method] += search_tok
+            
+            # Measure context token footprint
+            passages = []
+            if method == "grep":
                 for doc in haystack:
                     text = f"{doc['title']} {doc['text']}"
-                    for line in text.split("\n"):
-                        if pattern.search(line):
-                            lqe_passages.append(line)
-            except re.error:
-                pass
-            lqe_tokens += len(tokenizer.tokenize("\n".join(lqe_passages)))
-        
-        if "lqe_grep_v2" in methods_to_run:
-            lqe_passages_v2 = []
-            if lqe_pattern_v2.startswith("(") and lqe_pattern_v2.endswith(")"):
-                pattern_str_v2 = rf"\b{lqe_pattern_v2}\b"
-            else:
-                pattern_str_v2 = rf"\b({lqe_pattern_v2.strip('()')})\b"
+                    for kw in keywords:
+                        pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
+                        for line in text.split("\n"):
+                            if pattern.search(line):
+                                passages.append(line)
+            elif method in ["lqe_grep", "lqe_grep_v2", "cursor_hybrid"]:
+                pat_to_use = lqe_pattern if method == "lqe_grep" else lqe_pattern_v2
+                if pat_to_use.startswith("(") and pat_to_use.endswith(")"):
+                    pattern_str = rf"\b{pat_to_use}\b"
+                else:
+                    pattern_str = rf"\b({pat_to_use.strip('()')})\b"
+                try:
+                    pattern = re.compile(pattern_str, re.IGNORECASE)
+                    for doc in haystack:
+                        text = f"{doc['title']} {doc['text']}"
+                        for line in text.split("\n"):
+                            if pattern.search(line):
+                                passages.append(line)
+                except re.error:
+                    pass
+            elif method == "vector":
+                # Vector returns top-3 documents, so the entire top-3 documents are matched
+                for doc_id in res:
+                    for doc in haystack:
+                        if doc["_id"] == doc_id:
+                            passages.append(f"{doc['title']} {doc['text']}")
+            elif method in ["sandboxed_python", "iterative_grep"]:
+                # Simply count the retrieved document lines
+                for doc_id in res:
+                    for doc in haystack:
+                        if doc["_id"] == doc_id:
+                            passages.append(f"{doc['title']} {doc['text']}")
+                            
+            tok_count = len(tokenizer.tokenize("\n".join(passages)))
+            tokens[method] += tok_count
+            print(f"    {method.upper()} Success: {is_success} | Context Tokens: {tok_count} | Search Gen Tokens: {search_tok}")
             
-            try:
-                pattern_v2 = re.compile(pattern_str_v2, re.IGNORECASE)
-                for doc in haystack:
-                    text = f"{doc['title']} {doc['text']}"
-                    for line in text.split("\n"):
-                        if pattern_v2.search(line):
-                            lqe_passages_v2.append(line)
-            except re.error:
-                pass
-            lqe_tokens_v2 += len(tokenizer.tokenize("\n".join(lqe_passages_v2)))
-        
-        print(f"  Query {idx+1}/{len(selected_q_ids)}: '{query_text}'")
-        if "grep" in methods_to_run or "lqe_grep_v2" in methods_to_run:
-            print(f"    Keywords: {keywords}")
-        if "lqe_grep" in methods_to_run:
-            print(f"    LQE: {lqe_pattern}")
-        if "lqe_grep_v2" in methods_to_run:
-            print(f"    LQE v2: {lqe_pattern_v2}")
-        print(f"    Target ID: {target_id}")
-        if "grep" in methods_to_run:
-            print(f"    Grep top-3: {grep_results} (Success: {g_suc})")
-        if "lqe_grep" in methods_to_run:
-            print(f"    LQE  top-3: {lqe_results} (Success: {l_suc})")
-        if "lqe_grep_v2" in methods_to_run:
-            print(f"    LQE2 top-3: {lqe_results_v2} (Success: {l_suc_v2})")
-        if "vector" in methods_to_run:
-            print(f"    Vector top-3: {vec_results} (Success: {v_suc})")
         print("-" * 50)
         
     print("\n" + "=" * 50)
     print("NFCorpus Retrieval Evaluation Summary")
     print("=" * 50)
-    if "grep" in methods_to_run:
-        print(f"Vanilla Grep  Success@3: {grep_successes / len(selected_q_ids):.2%} | Avg Tokens: {grep_tokens / len(selected_q_ids):.1f}")
-    if "lqe_grep" in methods_to_run:
-        print(f"LQE-Grep      Success@3: {lqe_successes / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens / len(selected_q_ids):.1f}")
-    if "lqe_grep_v2" in methods_to_run:
-        print(f"LQE-Grep v2   Success@3: {lqe_successes_v2 / len(selected_q_ids):.2%} | Avg Tokens: {lqe_tokens_v2 / len(selected_q_ids):.1f}")
-    if "vector" in methods_to_run:
-        print(f"Vector Search Success@3: {vec_successes / len(selected_q_ids):.2%}")
+    
+    n_queries = len(selected_q_ids)
+    for method in methods_to_run:
+        acc = successes[method] / n_queries
+        avg_tok = tokens[method] / n_queries
+        avg_search_tok = search_tokens[method] / n_queries
+        print(f"{method.upper():16} Success@3: {acc:.2%} | Avg Context Tokens: {avg_tok:.1f} | Avg Search Gen Tokens: {avg_search_tok:.1f}")
+        results[method] = {"success_at_3": acc, "avg_tokens": avg_tok, "avg_search_tokens": avg_search_tok}
         
     # Save results
-    results = {}
-    if "grep" in methods_to_run:
-        results["grep"] = {"success@3": grep_successes / len(selected_q_ids), "avg_tokens": grep_tokens / len(selected_q_ids)}
-    if "lqe_grep" in methods_to_run:
-        results["lqe_grep"] = {"success@3": lqe_successes / len(selected_q_ids), "avg_tokens": lqe_tokens / len(selected_q_ids)}
-    if "lqe_grep_v2" in methods_to_run:
-        results["lqe_grep_v2"] = {"success@3": lqe_successes_v2 / len(selected_q_ids), "avg_tokens": lqe_tokens_v2 / len(selected_q_ids)}
-    if "vector" in methods_to_run:
-        results["vector"] = {"success@3": vec_successes / len(selected_q_ids)}
-        
     with open("lqe_nfcorpus_results.json", "w") as f:
         json.dump(results, f, indent=2)
     print("Results saved to lqe_nfcorpus_results.json")
