@@ -245,15 +245,15 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
                 \toprule
                 \textbf{Method} & \textbf{Accuracy} & \textbf{Avg. Tokens} \\
                 \midrule
-                Vanilla Grep & \textbf{70.0\%} & 717.1 \\
-                LQE-Grep (v1) & 60.0\% & 3,933.1 \\
-                LQE-Grep v2 (Ours) & \textbf{60.0\%} & \textbf{2,897.7} \\
-                Vector Search & 0.0\% & \textbf{53.2} \\
+                Vanilla Grep & 55.7\% & 1,467.4 \\
+                LQE-Grep (v1) & \textbf{65.7\%} & 4,697.3 \\
+                LQE-Grep v2 (Ours) & 64.3\% & \textbf{4,191.0} \\
+                Vector Search & 0.0\% & \textbf{64.4} \\
                 \bottomrule
             \end{tabular}
             \vskip 0.8em
             \small
-            * Evaluated on 10 random \texttt{single-session-user} queries from \texttt{longmemeval\_s\_cleaned.json}.
+            * Evaluated on all 70 \texttt{single-session-user} queries from \texttt{longmemeval\_s\_cleaned.json}.
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{The Truncation Bottleneck}
@@ -261,7 +261,7 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
                 \begin{itemize}
                     \item \textbf{Vector Search Fail}: Embedding 500+ turns was too slow, forcing truncation to the first 150 turns. The answer (in session 51) was missed entirely.
                     \item \textbf{Lexical Success}: Grep and LQE scanned all 500+ turns in milliseconds, capturing the needle.
-                    \item \textbf{LQE v2 Optimization}: Filters local conversational noise (e.g. \textit{``name''}, \textit{``shop''}) using turn frequency filtering, saving 26.3\% tokens.
+                    \item \textbf{LQE v2 Optimization}: Filters local conversational noise (e.g. \textit{``name''}, \textit{``shop''}) using turn frequency filtering, saving 10.8\% tokens.
                 \end{itemize}
             \end{block}
         \end{column}

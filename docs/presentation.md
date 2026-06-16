@@ -85,12 +85,12 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 # Slide 8: Real-World Benchmark: LongMemEval Evaluation
 ### Results on Real User-Assistant Conversations (~100k tokens per query)
-*   **The Setup**: Evaluated on 10 random `single-session-user` queries from `longmemeval_s_cleaned.json`.
+*   **The Setup**: Evaluated on all 70 `single-session-user` queries from `longmemeval_s_cleaned.json`.
 *   **Summary Table**:
-    *   **Vanilla Grep**: **70.0% Accuracy** (Avg context: 717.1 tokens)
-    *   **LQE-Grep (v1)**: **60.0% Accuracy** (Avg context: 3,933.1 tokens)
-    *   **LQE-Grep v2 (Ours)**: **60.0% Accuracy** (Avg context: **2,897.7 tokens** - **26.3% reduction**)
-    *   **Vector Search**: **0.0% Accuracy** (Avg context: 53.2 tokens)
+    *   **Vanilla Grep**: 55.7% Accuracy (Avg context: 1,467.4 tokens)
+    *   **LQE-Grep (v1)**: **65.7% Accuracy** (Avg context: 4,697.3 tokens)
+    *   **LQE-Grep v2 (Ours)**: **64.3% Accuracy** (Avg context: **4,191.0 tokens** - **10.8% reduction**)
+    *   **Vector Search**: 0.0% Accuracy (Avg context: 64.4 tokens)
 *   **The Truncation Bottleneck**:
     *   Vector search failed completely because embedding 500+ turns was too slow, forcing truncation to the first 150 turns. The answer (in session 51) was missed entirely.
     *   Lexical search scanned all 500+ turns in milliseconds, capturing the needle. LQE v1 suffered from matching common expanded words (e.g. "name", "shop"), which LQE v2 successfully prunes via dynamic local turn-frequency filtering.
