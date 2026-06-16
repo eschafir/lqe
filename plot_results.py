@@ -8,21 +8,33 @@ def main():
         
     noise_levels = sorted([int(k) for k in data.keys()])
     
-    methods = ["grep", "vector", "lqe_grep"]
+    methods = ["grep", "vector", "lqe_grep", "lqe_grep_v2", "cursor_hybrid", "sandboxed_python", "iterative_grep"]
     method_labels = {
         "grep": "Vanilla Grep",
         "vector": "Vector Search",
-        "lqe_grep": "LQE-Grep (Ours)"
+        "lqe_grep": "LQE-Grep (v1)",
+        "lqe_grep_v2": "LQE-Grep v2 (Ours)",
+        "cursor_hybrid": "Cursor Hybrid (Sim)",
+        "sandboxed_python": "ChatGPT Python (Sim)",
+        "iterative_grep": "Claude Code Grep (Sim)"
     }
     method_colors = {
-        "grep": "#7f7f7f",      # Neutral Gray
-        "vector": "#d62728",    # Warning Red/Coral
-        "lqe_grep": "#1f77b4"   # Strong Blue
+        "grep": "#7f7f7f",            # Neutral Gray
+        "vector": "#d62728",          # Warning Red/Coral
+        "lqe_grep": "#9467bd",        # Muted Purple
+        "lqe_grep_v2": "#1f77b4",     # Strong Blue
+        "cursor_hybrid": "#bcbd22",   # Olive Green
+        "sandboxed_python": "#ff7f0e", # Orange
+        "iterative_grep": "#2ca02c"   # Green
     }
     method_markers = {
         "grep": "o",
         "vector": "s",
-        "lqe_grep": "^"
+        "lqe_grep": "d",
+        "lqe_grep_v2": "^",
+        "cursor_hybrid": "v",
+        "sandboxed_python": "*",
+        "iterative_grep": "x"
     }
     
     accuracies = {m: [] for m in methods}
@@ -78,11 +90,11 @@ def main():
     
     # Place legend on top or bottom
     handles, labels = ax1.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=4)
     
     plt.tight_layout()
     # Adjust layout to make room for legend
-    plt.subplots_adjust(bottom=0.18)
+    plt.subplots_adjust(bottom=0.25)
     
     output_path = "evaluation_results.png"
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
