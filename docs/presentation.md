@@ -99,15 +99,15 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
 
 # Slide 9: Real-World Medical Benchmark: BEIR NFCorpus Evaluation
 ### Zero-Shot Document Retrieval (Success@3) on a Haystack of 50 Abstracts
-*   **The Setup**: Evaluated on 15 test queries comparing patient-written terms to medical documents.
+*   **The Setup**: Evaluated on all 323 test queries comparing patient-written terms to medical documents.
 *   **Summary Table**:
-    *   **Vanilla Grep**: **86.67% Success@3** (Avg context: 1,239.1 tokens)
-    *   **LQE-Grep (v1)**: **86.67% Success@3** (Avg context: 4,227.7 tokens)
-    *   **LQE-Grep v2 (Ours)**: **86.67% Success@3** (Avg context: **2,293.4 tokens** - **45.2% reduction**)
-    *   **Vector Search**: **33.33% Success@3**
+    *   **Vanilla Grep**: 50.42% Success@3 (Avg context: 1,949.6 tokens)
+    *   **LQE-Grep (v1)**: 56.30% Success@3 (Avg context: 5,689.8 tokens)
+    *   **LQE-Grep v2 (Ours)**: **57.98% Success@3** (Avg context: **3,182.3 tokens** - **44.1% reduction**)
+    *   **Vector Search**: 15.13% Success@3
 *   **The Precision Gap**:
-    *   Vector search failed (33.33% success) because embeddings prioritize semantic overlaps (e.g., retrieving leukemia papers for *"Dragon's Blood"* or general calcium papers for *"Milk and Bones"*).
-    *   Lexical search restricts matching to actual entity names, maintaining high precision. LQE v2 matches LQE v1's maximum success rate while pruning domain-specific high-frequency terminology via global corpus-level Document Frequency (DF) filtering.
+    *   Vector search failed (15.13% success) because embeddings prioritize general semantic associations (e.g., retrieving generic blood cell papers for *"Dragon's Blood"*).
+    *   Lexical search restricts matching to actual entity names, maintaining high precision. LQE v2 outperforms LQE v1 in recall while pruning domain-specific high-frequency terminology via global corpus-level Document Frequency (DF) filtering.
 
 ---
 

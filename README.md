@@ -72,15 +72,15 @@ We downloaded and evaluated 10 random `single-session-user` queries from the rea
 | **Vector Search** | **0.0%** | **53.2** | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
 
 ### Benchmark C: BEIR NFCorpus Medical Dataset
-We evaluated the retrievers on 15 test queries from the **BEIR NFCorpus** medical abstracts dataset, measuring **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
+We evaluated the retrievers on all 323 test queries from the **BEIR NFCorpus** medical abstracts dataset, measuring **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
 
 #### NFCorpus Results Table
 | Retrieval Method | Success@3 | Avg. Context Footprint (Tokens) | Notes / Behavior |
 |---|---|---|---|
-| **Vanilla Grep** | **86.67%** | 1,239.1 | High success. Exact medical keywords are highly specific. |
-| **LQE-Grep (v1)** | **86.67%** | 4,227.7 | High recall but suffers from severe token inflation due to generic medical terminology. |
-| **LQE-Grep v2 (Ours)** | **86.67%** | **2,293.4** | **Matches maximum recall while reducing token footprint by 45.2%** via dynamic global Document Frequency (DF) filtering. |
-| **Vector Search** | **33.33%** | N/A | Low success. Embeddings suffer from semantic blurring on domain-specific abstractions. |
+| **Vanilla Grep** | 50.42% | 1,949.6 | High success on exact queries. Fails on vocabulary mismatch. |
+| **LQE-Grep (v1)** | 56.30% | 5,689.8 | High recall but suffers from severe token inflation due to generic medical terminology. |
+| **LQE-Grep v2 (Ours)** | **57.98%** | **3,182.3** | **Outperforms LQE v1 in recall while reducing token footprint by 44.1%** via dynamic global Document Frequency (DF) filtering. |
+| **Vector Search** | 15.13% | N/A | Low success. Embeddings suffer from semantic blurring on domain-specific abstractions. |
 
 ---
 

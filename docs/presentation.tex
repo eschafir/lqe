@@ -280,22 +280,22 @@ Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes regex -> Grep sea
                 \toprule
                 \textbf{Method} & \textbf{Success@3} & \textbf{Avg. Tokens} \\
                 \midrule
-                Vanilla Grep & \textbf{86.67\%} & 1,239.1 \\
-                LQE-Grep (v1) & \textbf{86.67\%} & 4,227.7 \\
-                LQE-Grep v2 (Ours) & \textbf{86.67\%} & \textbf{2,293.4} \\
-                Vector Search & 33.33\% & N/A \\
+                Vanilla Grep & 50.42\% & 1,949.6 \\
+                LQE-Grep (v1) & 56.30\% & 5,689.8 \\
+                LQE-Grep v2 (Ours) & \textbf{57.98\%} & \textbf{3,182.3} \\
+                Vector Search & 15.13\% & N/A \\
                 \bottomrule
             \end{tabular}
             \vskip 0.8em
             \small
-            * Evaluated on 15 test queries comparing patient-written terms to medical documents.
+            * Evaluated on all 323 test queries comparing patient-written terms to medical documents.
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{The Precision Gap}
                 \small
                 \begin{itemize}
-                    \item \textbf{Vector Search Fail}: Only 33.33\% Success@3 because embeddings blur the lines between related concepts (e.g. retrieving leukemia papers for *"Dragon's Blood"*).
-                    \item \textbf{Lexical Precision}: Grep and LQE restrict matching to actual entity classes. LQE v2 global Document Frequency (DF) filtering cuts token inflation by 45.2\%.
+                    \item \textbf{Vector Search Fail}: Only 15.13\% Success@3 because embeddings blur the lines between related concepts (e.g. retrieving leukemia papers for *"Dragon's Blood"*).
+                    \item \textbf{Lexical Precision}: Grep and LQE restrict matching to actual entity classes. LQE v2 global Document Frequency (DF) filtering cuts token inflation by 44.1\%.
                 \end{itemize}
             \end{block}
         \end{column}
