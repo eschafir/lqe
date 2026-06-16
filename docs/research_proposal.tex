@@ -47,7 +47,7 @@ Large Language Model (LLM) agents increasingly rely on codebase search to gather
 \section{Introduction \& Motivation}
 Modern AI coding agents (such as Anthropic's \textit{Claude Code}, Google's \textit{Antigravity}, and open-source frameworks like \textit{OpenClaw}) operate in autonomous loops: they analyze a task, call search tools to inspect a codebase, retrieve files, and edit code. 
 
-As analyzed in the baseline study \textit{``Is Grep All You Need? How Agent Harnesses Reshape Agentic Search''} (Sen et al., 2026, arXiv:2605.15184v1), the retrieval performance of these loops is not determined in isolation. It is heavily mediated by the **agent harness**—the environment layer that manages prompt construction, intercepts tool outputs, and formats context delivery (either inline in the prompt or written programmatically to files).
+As analyzed in the baseline study \textit{``Is Grep All You Need? How Agent Harnesses Reshape Agentic Search''} \cite{sen2026grep}, the retrieval performance of these loops is not determined in isolation. It is heavily mediated by the \textbf{agent harness}—the environment layer that manages prompt construction, intercepts tool outputs, and formats context delivery (either inline in the prompt or written programmatically to files).
 
 Currently, coding agents rely almost exclusively on standard terminal-based command-line search utilities (like \texttt{ripgrep}) to navigate workspaces. While highly optimized for speed and file filtering, these utilities operate on exact character matching. When an agent queries a concept using synonyms or high-level abstractions, exact lexical search fails. This proposal details a methodology to bridge this lexical-semantic gap directly within the harness middleware.
 
@@ -59,13 +59,30 @@ Lexical search tools like \texttt{ripgrep} are blind to semantics. If the agent 
 
 \subsection{Topical & Action Template Overlap (Semantic Failure)}
 Vector-based semantic search maps queries and passages into a shared embedding space. However, in codebases or chat logs, embeddings are frequently dominated by structural syntax or common action templates rather than specific entity categories. 
-For example, when querying *"What color vehicle did the user buy?"*, a vector search engine may retrieve the irrelevant line *"[User]: The user bought a matching white trenchcoat for the party."* because the embedding space prioritizes the action verb structure (*"bought"*, *"buy"*) over the target noun classes (*"vehicle"* vs. *"apparel"*). This populates the context window with topical distractors, causing **context rot**.
+For example, when querying \textit{``What color vehicle did the user buy?''}, a vector search engine may retrieve the irrelevant line \textit{``[User]: The user bought a matching white trenchcoat for the party.''} because the embedding space prioritizes the action verb structure (\textit{``bought''}, \textit{``buy''}) over the target noun classes (\textit{``vehicle''} vs. \textit{``apparel''}). This populates the context window with topical distractors, causing \textbf{context rot}.
 
 \subsection{The Truncation Bottleneck (Compute Complexity)}
 In massive text contexts (e.g. chat logs containing 100k+ tokens across 500+ turns), embedding-based vector search is computationally prohibitive to execute locally on-demand. To maintain acceptable latency, agents must truncate candidates (e.g., scoring only the first 150 turns). If the target information is located beyond this truncation limit (e.g., in session 51), vector search suffers from a complete recall collapse (0.0\% success in our tests), whereas lexical search scans the entire 100k+ token file in milliseconds.
 
+\section{State of the Art: Search in Commercial AI Coding Agents}
+Autonomous coding agents rely on various search patterns to locate context within codebases. We examine three prominent search paradigms across leading developer tools:
+
+\subsection{Agentic Lexical Search (Claude Code \& Antigravity)}
+Claude Code \cite{claudecode} and Google's Antigravity employ an agentic search paradigm that relies directly on native command-line utilities (like \texttt{ripgrep} or \texttt{find}). In these systems, the agent operates in an interactive loop, autonomously deciding when to search, what keywords to use, and how to refine its query. 
+While this approach is computationally lightweight, respects \texttt{.gitignore} boundaries, and runs at native speed, it suffers from the vocabulary mismatch trap. If the agent issues a search for a high-level concept (e.g., ``authorization''), it misses files where authorization is implemented using domain-specific synonyms (e.g., ``token verification'' or ``access guard''). The agent is forced to iteratively guess synonyms, consuming substantial reasoning steps and context window tokens in the process.
+
+\subsection{Hybrid Semantic \& Trigram Indexing (Cursor)}
+Cursor \cite{cursor} implements a complex, multi-layered retrieval stack that combines dense semantic vector search with an accelerated regex search. For semantic queries, Cursor uses a vector database to search code chunk embeddings. To avoid the high latency of running \texttt{ripgrep} linearly over massive repositories, Cursor builds a local trigram index of the codebase. Before executing a regex search, it uses this trigram index to filter out files that do not contain the query's characters, restricting the final \texttt{ripgrep} scan to a small candidate set.
+However, this hybrid system requires substantial indexing overhead, cloud vector storage synchronization, and local file caching (managed via Merkle trees). Such requirements are prohibitive in resource-constrained, offline, or highly secure developer environments.
+
+\subsection{Sandboxed Code Execution (ChatGPT)}
+ChatGPT's Advanced Data Analysis (formerly Code Interpreter) uses python execution inside a sandboxed environment to locate context. When searching uploaded code repositories, the model writes custom Python scripts (using \texttt{re.search} or \texttt{glob}). This introduces execution risk (python runtime/syntax errors) and occupies precious reasoning steps, while loading raw file contents directly into python memory is token-inefficient.
+
+\subsection{How LQE-Grep Improves Existing Methods}
+LQE-Grep bridges these gaps by shifting semantic-level query expansion from the agent's reasoning loop to the harness middleware, translating natural language queries into optimized, word-boundary protected regex alternations. Compared to Claude Code, it eliminates vocabulary mismatch failures on the first search pass without consuming the agent's cognitive tokens. Compared to Cursor, it operates as a \textbf{zero-index} solution, requiring no local vector databases, trigram indexes, or Merkle trees. It enables semantic-level recall directly on top of native, git-aware utilities like \texttt{ripgrep} at zero indexing cost.
+
 \section{Proposed Methodology: Lexical Query Expansion (LQE)}
-We propose implementing **Lexical Query Expansion (LQE) via Harness-Level Regex Synthesis**. Instead of forcing the main agent to plan queries or maintaining local vector indexes, the LQE middleware intercepts search queries and performs the following pipeline:
+We propose implementing \textbf{Lexical Query Expansion (LQE) via Harness-Level Regex Synthesis}. Instead of forcing the main agent to plan queries or maintaining local vector indexes, the LQE middleware intercepts search queries and performs the following pipeline:
 
 \begin{figure}[h]
 \centering
@@ -93,12 +110,14 @@ We propose implementing **Lexical Query Expansion (LQE) via Harness-Level Regex 
 \end{figure}
 
 \subsection{The Pipeline Step-by-Step}
-1. **Query Capture**: The agent issues a search command (e.g., `Search("What color vehicle...")`).
-2. **Category Extraction & Expansion**: A lightweight prompt instructs a fast local model to extract the category noun (`"vehicle"`) and expand it into synonyms, subclasses, and specific members (e.g., `sedan`, `coupe`, `truck`, `suv`, `motorcycle`).
-3. **Regex Synthesis**: The harness formats these terms into a pipe-separated regular expression wrapped in **word boundaries** (\texttt{\textbackslash b}) to prevent substring collision bugs (e.g. preventing the term `"car"` from matching `"cardigan"` or `"cardiologist"`):
-   $$\text{Regex: } \backslash b(sedan|coupe|suv|truck|motorcycle|car)\backslash b$$
-4. **Execution**: The harness executes a native local search command (like \texttt{ripgrep}) using this regex over the raw codebase files.
-5. **Context Delivery**: The precise lines containing the matching entities are returned directly to the agent's context window.
+\begin{enumerate}
+    \item \textbf{Query Capture}: The agent issues a search command (e.g., `Search("What color vehicle...")`).
+    \item \textbf{Category Extraction \& Expansion}: A lightweight prompt instructs a fast local model to extract the category noun (\texttt{"vehicle"}) and expand it into synonyms, subclasses, and specific members (e.g., \texttt{sedan}, \texttt{coupe}, \texttt{truck}, \texttt{suv}, \texttt{motorcycle}).
+    \item \textbf{Regex Synthesis}: The harness formats these terms into a pipe-separated regular expression wrapped in \textbf{word boundaries} (\texttt{\textbackslash b}) to prevent substring collision bugs (e.g., preventing the term \texttt{"car"} from matching \texttt{"cardigan"} or \texttt{"cardiologist"}):
+       $$\text{Regex: } \backslash b(sedan|coupe|suv|truck|motorcycle|car)\backslash b$$
+    \item \textbf{Execution}: The harness executes a native local search command (like \texttt{ripgrep}) using this regex over the raw codebase files.
+    \item \textbf{Context Delivery}: The precise lines containing the matching entities are returned directly to the agent's context window.
+\end{enumerate}
 
 \subsection{Conservative LQE Expansion via Dynamic Frequency Filtering (LQE v2)}
 While raw query expansion maximizes recall, it frequently suffers from context inflation (retrieving excessive tokens due to broad synonym matches). In LQE v2, we introduce two layers of conservative, context-aware post-processing filters:
@@ -109,7 +128,7 @@ While raw query expansion maximizes recall, it frequently suffers from context i
 \end{enumerate}
 
 \section{Experimental Plan & Success Metrics}
-To validate LQE, we benchmark it against **Vanilla Grep** and **Vector Search** across three distinct datasets:
+To validate LQE, we benchmark it against \textbf{Vanilla Grep} and \textbf{Vector Search} across three distinct datasets:
 
 \begin{enumerate}
     \item \textbf{Synthetic dialogue benchmark}: Generates controlled conversation logs. It tests the capacity to handle strict vocabulary mismatches under parameterized noise scaling (adding 10, 20, and 35 distractor turns).
@@ -119,9 +138,11 @@ To validate LQE, we benchmark it against **Vanilla Grep** and **Vector Search** 
 
 \subsection{Success Metrics}
 Success is measured along three dimensions:
-*   \textbf{Accuracy / Success@3}: The percentage of queries where the system successfully retrieves the correct target document or answer.
-*   \textbf{Context Token Footprint}: The average number of tokens returned to the agent. Smaller footprints prevent context rot.
-*   \textbf{Execution Latency / Compute Complexity}: The time and resources required to execute the search (especially on CPU-only local environments).
+\begin{itemize}
+    \item \textbf{Accuracy / Success@3}: The percentage of queries where the system successfully retrieves the correct target document or answer.
+    \item \textbf{Context Token Footprint}: The average number of tokens returned to the agent. Smaller footprints prevent \textbf{context rot}.
+    \item \textbf{Execution Latency / Compute Complexity}: The time and resources required to execute the search (especially on CPU-only local environments).
+\end{itemize}
 
 \section{Experimental Results}
 Our pilot runs using the local \texttt{Qwen2.5-1.5B-Instruct} model reveal highly distinct behaviors across the benchmarks.
@@ -223,8 +244,42 @@ Although dynamic frequency filtering reduces the token footprint by over 45\%, f
 \subsection{Multimodal Visual Search}
 LQE's core philosophy can be extended to multimodal image search:
 \begin{itemize}
-    \item \textbf{Caption RAG}: Vision-Language models pre-generate image captions. LQE runs regex matching over these captions to prevent visual vector search false positives (e.g. keeping the search locked onto *"sinking boats"* rather than *"sinking charts"*).
-    \item \textbf{Discrete Visual Tokens}: Generative models represent images as grids of discrete visual codebook indices. The LQE harness can expand text queries into regex patterns of visual tokens (e.g., translating `"blue boat"` to a sequence of color and edge tokens) and run \texttt{ripgrep} directly over raw tokenized image files.
+    \item \textbf{Caption RAG}: Vision-Language models pre-generate image captions. LQE runs regex matching over these captions to prevent visual vector search false positives (e.g., keeping the search locked onto \textit{``sinking boats''} rather than \textit{``sinking charts''}).
+    \item \textbf{Discrete Visual Tokens}: Generative models represent images as grids of discrete visual codebook indices. The LQE harness can expand text queries into regex patterns of visual tokens (e.g., translating \textit{``blue boat''} to a sequence of color and edge tokens) and run \texttt{ripgrep} directly over raw tokenized image files.
 \end{itemize}
+
+\begin{thebibliography}{99}
+
+\bibitem{sen2026grep}
+Sahil Sen, Akhil Kasturi, Elias Lumer, Anmol Gulati, and Vamse Kumar Subbiah. 2026.
+\newblock Is Grep All You Need? How Agent Harnesses Reshape Agentic Search.
+\newblock {\em arXiv preprint arXiv:2605.15184v1}.
+
+\bibitem{wang2023query2doc}
+Liang Wang, Nan Yang, and Furu Wei. 2023.
+\newblock Query2Doc: Query Expansion with Large Language Models.
+\newblock {\em Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)}.
+
+\bibitem{gao2022hyde}
+Luyu Gao, Xueguang Ma, Jimmy Lin, and Jamie Callan. 2022.
+\newblock Precise Zero-Shot Dense Retrieval with Few-Shot Prompting.
+\newblock {\em arXiv preprint arXiv:2212.10496}.
+
+\bibitem{formal2021splade}
+Thibault Formal, Benjamin Piwowarski, and St{\'e}phane Clinchant. 2021.
+\newblock SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking.
+\newblock {\em arXiv preprint arXiv:2109.10086}.
+
+\bibitem{claudecode}
+Anthropic. 2026.
+\newblock Claude Code: Agentic Command Line Interface.
+\newblock {\em Technical Report, Anthropic}.
+
+\bibitem{cursor}
+Anysphere. 2026.
+\newblock Cursor: Hybrid Trigram and Semantic Search Architecture for Large Codebases.
+\newblock {\em Technical Blog, Cursor}.
+
+\end{thebibliography}
 
 \end{document}
