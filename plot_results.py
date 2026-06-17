@@ -147,7 +147,7 @@ def main():
                 ax1.text(
                     bar.get_x() + bar.get_width() / 2.0, 
                     yval + 1, 
-                    f"{yval:.1f}%", 
+                    f"{yval:.2f}%", 
                     ha='center', 
                     va='bottom', 
                     fontsize=9,
@@ -157,7 +157,7 @@ def main():
             ax1.set_title("LongMemEval: QA Accuracy")
             ax1.set_ylim(0, 110)
             ax1.grid(True, linestyle="--", alpha=0.4, axis='y')
-            ax1.tick_params(axis='x', rotation=20)
+            ax1.tick_params(axis='x', rotation=45)
             
             # Right panel: Tokens
             bars2 = ax2.bar(bar_labels, tok_vals, color=bar_colors, edgecolor="black", alpha=0.85)
@@ -200,7 +200,7 @@ def main():
                 ax1.text(
                     bar.get_x() + bar.get_width() / 2.0, 
                     yval + 1, 
-                    f"{yval:.1f}%", 
+                    f"{yval:.2f}%", 
                     ha='center', 
                     va='bottom', 
                     fontsize=9,

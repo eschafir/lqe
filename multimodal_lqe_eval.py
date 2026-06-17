@@ -82,7 +82,7 @@ def main():
     # 1. Load CLIP Model
     from transformers import CLIPProcessor, CLIPModel
     print(f"Loading CLIP model: {args.model}...")
-    clip_model = CLIPModel.from_pretrained(args.model).to(device)
+    clip_model = CLIPModel.from_pretrained(args.model, use_safetensors=True).to(device)
     clip_processor = CLIPProcessor.from_pretrained(args.model)
     
     # 2. Optionally load LLM Model
