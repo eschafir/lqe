@@ -96,6 +96,7 @@ def main():
     vanilla_correct_count = 0
     mlqe_avg_correct_count = 0
     mlqe_prod_correct_count = 0
+    mlqe_hybrid_correct_count = 0
     total_count = 0
     
     results_log = []
@@ -145,11 +146,12 @@ def main():
         vanilla_correct = 1 if vanilla_true_score > vanilla_false_score else 0
         vanilla_correct_count += vanilla_correct
         
-        # 3.4. Evaluate M-LQE (matching decomposed components)
+        # 3.4. Evaluate M-LQE (matching decomposed components with in-distribution templates)
         # Compute true components similarities
         t_comp_scores = []
         for comp in true_comps:
-            inputs_comp = clip_processor(text=[comp], return_tensors="pt", padding=True).to(device)
+            comp_text = f"a photo of a {comp}"
+            inputs_comp = clip_processor(text=[comp_text], return_tensors="pt", padding=True).to(device)
             with torch.no_grad():
                 c_embed = clip_model.get_text_features(**inputs_comp)
                 c_embed = extract_tensor(c_embed)
@@ -160,7 +162,8 @@ def main():
         # Compute false components similarities
         f_comp_scores = []
         for comp in false_comps:
-            inputs_comp = clip_processor(text=[comp], return_tensors="pt", padding=True).to(device)
+            comp_text = f"a photo of a {comp}"
+            inputs_comp = clip_processor(text=[comp_text], return_tensors="pt", padding=True).to(device)
             with torch.no_grad():
                 c_embed = clip_model.get_text_features(**inputs_comp)
                 c_embed = extract_tensor(c_embed)
@@ -168,7 +171,7 @@ def main():
                 c_embed_np = c_embed.cpu().numpy()[0]
             f_comp_scores.append(float(np.dot(img_embed_np, c_embed_np)))
             
-        # Scores combination (Average and Product)
+        # Scores combination (Average, Product, and Local-Global Hybrid)
         mlqe_true_avg = np.mean(t_comp_scores) if t_comp_scores else 0.0
         mlqe_false_avg = np.mean(f_comp_scores) if f_comp_scores else 0.0
         mlqe_avg_correct = 1 if mlqe_true_avg > mlqe_false_avg else 0
@@ -179,11 +182,19 @@ def main():
         mlqe_prod_correct = 1 if mlqe_true_prod > mlqe_false_prod else 0
         mlqe_prod_correct_count += mlqe_prod_correct
         
+        # Local-Global Hybrid: vanilla global score + beta * component-average score
+        beta = 0.5
+        mlqe_true_hybrid = vanilla_true_score + beta * mlqe_true_avg
+        mlqe_false_hybrid = vanilla_false_score + beta * mlqe_false_avg
+        mlqe_hybrid_correct = 1 if mlqe_true_hybrid > mlqe_false_hybrid else 0
+        mlqe_hybrid_correct_count += mlqe_hybrid_correct
+        
         total_count += 1
         print(f"Sample {total_count:02d} | True: '{true_cap}' vs False: '{false_cap}'")
-        print(f"  Vanilla: {vanilla_true_score:.4f} vs {vanilla_false_score:.4f} | Correct: {vanilla_correct}")
-        print(f"  M-LQE (Avg): {mlqe_true_avg:.4f} vs {mlqe_false_avg:.4f} | Correct: {mlqe_avg_correct}")
+        print(f"  Vanilla:      {vanilla_true_score:.4f} vs {vanilla_false_score:.4f} | Correct: {vanilla_correct}")
+        print(f"  M-LQE (Avg):  {mlqe_true_avg:.4f} vs {mlqe_false_avg:.4f} | Correct: {mlqe_avg_correct}")
         print(f"  M-LQE (Prod): {mlqe_true_prod:.6f} vs {mlqe_false_prod:.6f} | Correct: {mlqe_prod_correct}")
+        print(f"  M-LQE (Hyb):  {mlqe_true_hybrid:.4f} vs {mlqe_false_hybrid:.4f} | Correct: {mlqe_hybrid_correct}")
         
         results_log.append({
             "id": total_count,
@@ -191,20 +202,23 @@ def main():
             "false_caption": false_cap,
             "vanilla_correct": vanilla_correct,
             "mlqe_avg_correct": mlqe_avg_correct,
-            "mlqe_prod_correct": mlqe_prod_correct
+            "mlqe_prod_correct": mlqe_prod_correct,
+            "mlqe_hybrid_correct": mlqe_hybrid_correct
         })
         
     vanilla_acc = vanilla_correct_count / total_count
     mlqe_avg_acc = mlqe_avg_correct_count / total_count
     mlqe_prod_acc = mlqe_prod_correct_count / total_count
+    mlqe_hybrid_acc = mlqe_hybrid_correct_count / total_count
     
     print("\n" + "=" * 50)
     print("M-LQE Evaluation Summary on ARO Attribution")
     print("=" * 50)
     print(f"Total Samples Evaluated: {total_count}")
-    print(f"Vanilla CLIP Accuracy:    {vanilla_acc:.2%}")
+    print(f"Vanilla CLIP Accuracy:      {vanilla_acc:.2%}")
     print(f"M-LQE (Average Similarity): {mlqe_avg_acc:.2%}")
     print(f"M-LQE (Product Similarity): {mlqe_prod_acc:.2%}")
+    print(f"M-LQE (Hybrid Fusion Score): {mlqe_hybrid_acc:.2%}")
     print("=" * 50)
     
     # Save results to JSON
@@ -214,6 +228,7 @@ def main():
         "vanilla_accuracy": vanilla_acc,
         "mlqe_avg_accuracy": mlqe_avg_acc,
         "mlqe_prod_accuracy": mlqe_prod_acc,
+        "mlqe_hybrid_accuracy": mlqe_hybrid_acc,
         "details": results_log
     }
     
