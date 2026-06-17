@@ -97,6 +97,8 @@ def main():
     mlqe_avg_correct_count = 0
     mlqe_prod_correct_count = 0
     mlqe_hybrid_correct_count = 0
+    mlqe_grounded_correct_count = 0
+    mlqe_fusion_correct_count = 0
     total_count = 0
     
     results_log = []
@@ -109,6 +111,11 @@ def main():
         img = sample["image"]
         true_cap = sample["true_caption"]
         false_cap = sample["false_caption"]
+        obj1 = sample.get("obj1", "")
+        attributes = sample.get("attributes", [])
+        
+        attr_true = attributes[0] if len(attributes) > 0 else ""
+        attr_false = attributes[1] if len(attributes) > 1 else ""
         
         # 3.1. Compute CLIP image embedding
         inputs_img = clip_processor(images=img, return_tensors="pt").to(device)
@@ -147,7 +154,6 @@ def main():
         vanilla_correct_count += vanilla_correct
         
         # 3.4. Evaluate M-LQE (matching decomposed components with in-distribution templates)
-        # Compute true components similarities
         t_comp_scores = []
         for comp in true_comps:
             comp_text = f"a photo of a {comp}"
@@ -159,7 +165,6 @@ def main():
                 c_embed_np = c_embed.cpu().numpy()[0]
             t_comp_scores.append(float(np.dot(img_embed_np, c_embed_np)))
             
-        # Compute false components similarities
         f_comp_scores = []
         for comp in false_comps:
             comp_text = f"a photo of a {comp}"
@@ -171,7 +176,52 @@ def main():
                 c_embed_np = c_embed.cpu().numpy()[0]
             f_comp_scores.append(float(np.dot(img_embed_np, c_embed_np)))
             
-        # Scores combination (Average, Product, and Local-Global Hybrid)
+        # 3.5. Grounded Visual Verification (Cropping based on object bounding box)
+        bbox = sample.get("bbox", None)
+        has_crop = bbox is not None and all(k in bbox for k in ["x", "y", "w", "h"]) and obj1 and attr_true and attr_false
+        cropped_img = None
+        
+        if has_crop:
+            try:
+                x, y, w, h = int(bbox["x"]), int(bbox["y"]), int(bbox["w"]), int(bbox["h"])
+                left = max(0, x)
+                top = max(0, y)
+                right = min(img.width, x + w)
+                bottom = min(img.height, y + h)
+                if right > left and bottom > top:
+                    cropped_img = img.crop((left, top, right, bottom))
+            except Exception:
+                cropped_img = None
+                
+        cropped_true_score = 0.0
+        cropped_false_score = 0.0
+        if cropped_img is not None:
+            inputs_crop = clip_processor(images=cropped_img, return_tensors="pt").to(device)
+            true_crop_text = f"a photo of a {attr_true} {obj1}"
+            false_crop_text = f"a photo of a {attr_false} {obj1}"
+            inputs_t_crop = clip_processor(text=[true_crop_text], return_tensors="pt", padding=True).to(device)
+            inputs_f_crop = clip_processor(text=[false_crop_text], return_tensors="pt", padding=True).to(device)
+            
+            with torch.no_grad():
+                crop_embed = clip_model.get_image_features(**inputs_crop)
+                crop_embed = extract_tensor(crop_embed)
+                crop_embed = crop_embed / crop_embed.norm(p=2, dim=-1, keepdim=True)
+                crop_embed_np = crop_embed.cpu().numpy()[0]
+                
+                t_crop_embed = clip_model.get_text_features(**inputs_t_crop)
+                t_crop_embed = extract_tensor(t_crop_embed)
+                t_crop_embed = t_crop_embed / t_crop_embed.norm(p=2, dim=-1, keepdim=True)
+                t_crop_embed_np = t_crop_embed.cpu().numpy()[0]
+                
+                f_crop_embed = clip_model.get_text_features(**inputs_f_crop)
+                f_crop_embed = extract_tensor(f_crop_embed)
+                f_crop_embed = f_crop_embed / f_crop_embed.norm(p=2, dim=-1, keepdim=True)
+                f_crop_embed_np = f_crop_embed.cpu().numpy()[0]
+                
+            cropped_true_score = float(np.dot(crop_embed_np, t_crop_embed_np))
+            cropped_false_score = float(np.dot(crop_embed_np, f_crop_embed_np))
+            
+        # Scores combination (Average, Product, Hybrid, Grounded, and Grounded Fusion)
         mlqe_true_avg = np.mean(t_comp_scores) if t_comp_scores else 0.0
         mlqe_false_avg = np.mean(f_comp_scores) if f_comp_scores else 0.0
         mlqe_avg_correct = 1 if mlqe_true_avg > mlqe_false_avg else 0
@@ -182,12 +232,30 @@ def main():
         mlqe_prod_correct = 1 if mlqe_true_prod > mlqe_false_prod else 0
         mlqe_prod_correct_count += mlqe_prod_correct
         
-        # Local-Global Hybrid: vanilla global score + beta * component-average score
         beta = 0.5
         mlqe_true_hybrid = vanilla_true_score + beta * mlqe_true_avg
         mlqe_false_hybrid = vanilla_false_score + beta * mlqe_false_avg
         mlqe_hybrid_correct = 1 if mlqe_true_hybrid > mlqe_false_hybrid else 0
         mlqe_hybrid_correct_count += mlqe_hybrid_correct
+        
+        # Grounded (Crop-Only) Score
+        mlqe_true_grounded = cropped_true_score
+        mlqe_false_grounded = cropped_false_score
+        mlqe_grounded_correct = 1 if mlqe_true_grounded > mlqe_false_grounded else 0
+        if cropped_img is not None:
+            mlqe_grounded_correct_count += mlqe_grounded_correct
+        
+        # Grounded Fusion Score: global score + gamma * grounded crop score
+        gamma = 0.5
+        mlqe_true_fusion = vanilla_true_score + gamma * cropped_true_score
+        mlqe_false_fusion = vanilla_false_score + gamma * cropped_false_score
+        mlqe_fusion_correct = 1 if mlqe_true_fusion > mlqe_false_fusion else 0
+        if cropped_img is not None:
+            mlqe_fusion_correct_count += mlqe_fusion_correct
+        else:
+            # Fallback to vanilla if crop is missing
+            mlqe_fusion_correct = vanilla_correct
+            mlqe_fusion_correct_count += vanilla_correct
         
         total_count += 1
         print(f"Sample {total_count:02d} | True: '{true_cap}' vs False: '{false_cap}'")
@@ -195,6 +263,9 @@ def main():
         print(f"  M-LQE (Avg):  {mlqe_true_avg:.4f} vs {mlqe_false_avg:.4f} | Correct: {mlqe_avg_correct}")
         print(f"  M-LQE (Prod): {mlqe_true_prod:.6f} vs {mlqe_false_prod:.6f} | Correct: {mlqe_prod_correct}")
         print(f"  M-LQE (Hyb):  {mlqe_true_hybrid:.4f} vs {mlqe_false_hybrid:.4f} | Correct: {mlqe_hybrid_correct}")
+        if cropped_img is not None:
+            print(f"  M-LQE (Grd):  {mlqe_true_grounded:.4f} vs {mlqe_false_grounded:.4f} | Correct: {mlqe_grounded_correct}")
+            print(f"  M-LQE (Fus):  {mlqe_true_fusion:.4f} vs {mlqe_false_fusion:.4f} | Correct: {mlqe_fusion_correct}")
         
         results_log.append({
             "id": total_count,
@@ -203,7 +274,9 @@ def main():
             "vanilla_correct": vanilla_correct,
             "mlqe_avg_correct": mlqe_avg_correct,
             "mlqe_prod_correct": mlqe_prod_correct,
-            "mlqe_hybrid_correct": mlqe_hybrid_correct
+            "mlqe_hybrid_correct": mlqe_hybrid_correct,
+            "mlqe_grounded_correct": mlqe_grounded_correct if cropped_img is not None else None,
+            "mlqe_fusion_correct": mlqe_fusion_correct
         })
         
     vanilla_acc = vanilla_correct_count / total_count
@@ -211,14 +284,21 @@ def main():
     mlqe_prod_acc = mlqe_prod_correct_count / total_count
     mlqe_hybrid_acc = mlqe_hybrid_correct_count / total_count
     
+    # Calculate crop-based accuracy over samples that actually had valid crops
+    valid_crop_count = sum(1 for r in results_log if r["mlqe_grounded_correct"] is not None)
+    mlqe_grd_acc = (mlqe_grounded_correct_count / valid_crop_count) if valid_crop_count > 0 else 0.0
+    mlqe_fus_acc = mlqe_fusion_correct_count / total_count
+    
     print("\n" + "=" * 50)
     print("M-LQE Evaluation Summary on ARO Attribution")
     print("=" * 50)
     print(f"Total Samples Evaluated: {total_count}")
-    print(f"Vanilla CLIP Accuracy:      {vanilla_acc:.2%}")
+    print(f"Vanilla CLIP Accuracy:       {vanilla_acc:.2%}")
     print(f"M-LQE (Average Similarity): {mlqe_avg_acc:.2%}")
     print(f"M-LQE (Product Similarity): {mlqe_prod_acc:.2%}")
     print(f"M-LQE (Hybrid Fusion Score): {mlqe_hybrid_acc:.2%}")
+    print(f"M-LQE (Grounded Crop-Only): {mlqe_grd_acc:.2%} (over {valid_crop_count} valid crops)")
+    print(f"M-LQE (Grounded Fusion):    {mlqe_fus_acc:.2%}")
     print("=" * 50)
     
     # Save results to JSON
@@ -229,6 +309,8 @@ def main():
         "mlqe_avg_accuracy": mlqe_avg_acc,
         "mlqe_prod_accuracy": mlqe_prod_acc,
         "mlqe_hybrid_accuracy": mlqe_hybrid_acc,
+        "mlqe_grounded_accuracy": mlqe_grd_acc,
+        "mlqe_fusion_accuracy": mlqe_fus_acc,
         "details": results_log
     }
     
