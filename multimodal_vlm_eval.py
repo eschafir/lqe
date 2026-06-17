@@ -34,11 +34,13 @@ def main():
     parser = argparse.ArgumentParser(description="VLM/NIM Evaluation on ARO Visual Attribution")
     parser.add_argument("--provider", type=str, choices=["hf", "nim"], default="hf", help="Model API provider")
     parser.add_argument("--model", type=str, default="Qwen/Qwen2-VL-2B-Instruct", help="Model key/name")
-    parser.add_argument("--base-url", type=str, default="http://localhost:8000/v1", help="NVIDIA NIM base URL")
     parser.add_argument("--api-key", type=str, default="", help="NVIDIA NIM API key")
     parser.add_argument("--num-samples", type=int, default=50, help="Number of test samples to evaluate")
     parser.add_argument("--output", type=str, default="vlm_aro_results.json", help="Path to save result JSON")
     args = parser.parse_args()
+    
+    # Hardcode base URL to NVIDIA Cloud API Catalog with environment override fallback
+    base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
     
     # Fallback to environment variable if argument is not provided
     if not args.api_key:
@@ -62,7 +64,7 @@ def main():
             print(f"Error loading Hugging Face pipeline: {e}")
             return
     else:
-        print(f"Connecting to NVIDIA NIM endpoint at: {args.base_url}")
+        print(f"Connecting to NVIDIA NIM endpoint at: {base_url}")
         
     # Load ARO Visual Attribution dataset from Hugging Face
     print("Loading ARO Visual Attribution dataset from HF...")
@@ -154,7 +156,7 @@ def main():
                     "max_tokens": 10
                 }
                 
-                invoke_url = f"{args.base_url.rstrip('/')}/chat/completions"
+                invoke_url = f"{base_url.rstrip('/')}/chat/completions"
                 response = requests.post(invoke_url, headers=headers, json=payload)
                 response.raise_for_status()
                 res_data = response.json()
