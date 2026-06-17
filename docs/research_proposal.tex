@@ -235,17 +235,37 @@ To illustrate the differing retrieval behaviors across methods, we present concr
     \end{itemize}
 \end{itemize}
 
-\section{Future Work & Multimodal Extensions}
+\section{Future Work \& Multimodal Extensions}
 We propose two primary avenues of future optimization and extension:
 
 \subsection{Fine-grained Lexical Stop-word Tuning}
 Although dynamic frequency filtering reduces the token footprint by over 45\%, further efficiency gains can be achieved by integrating part-of-speech (POS) taggers to filter out weak verbs and adjectives during LLM query expansion, leaving only highly discriminative nouns.
 
-\subsection{Multimodal Visual Search}
-LQE's core philosophy can be extended to multimodal image search:
+\subsection{Multimodal Lexical Query Expansion (M-LQE)}
+The core philosophy of LQE---decomposing queries, performing targeted expansion, and pruning distractors---can be extended to cross-modal text-to-image (T2I) and image-to-image (I2I) search to resolve the key vulnerability of modern Vision-Language Models (VLMs) and dual-encoders: \textbf{the bag-of-words and attribute-binding limits}.
+
+Standard multimodal models like CLIP \cite{radford2021learning} often suffer from compositionality failures. For instance, when presented with a query like \textit{``a red square and a blue circle''}, CLIP yields high similarity scores for images containing a \textit{blue square and a red circle} because it matches the presence of all words but fails to bind adjectives to their corresponding nouns. 
+
+To solve this, we introduce \textbf{M-LQE}. The pipeline consists of two phases:
+\begin{enumerate}
+    \item \textbf{Query Decomposition}: The user's text query is parsed by an LLM middleware into a structured JSON schema of objects, attributes, and relationships:
+    \begin{quote}
+        \texttt{[\{"object": "square", "attributes": ["red"]\}, \{"object": "circle", "attributes": ["blue"]\}]}
+    \end{quote}
+    \item \textbf{Structured Matching (Compositional Scoring)}:
+    Instead of encoding the entire caption as a single string, the query components are encoded separately. The similarity of the candidate image $I$ to the caption $C$ is computed as the product or average of its cosine similarities to each decomposed component $s \in C$:
+    \begin{equation}
+        Score(I, C) = \prod_{s \in C} sim(I, s) \quad \text{or} \quad \frac{1}{|C|} \sum_{s \in C} sim(I, s)
+    \end{equation}
+    This enforces strict lexical and attribute-binding verification, pulling the score down if any single component matches poorly (e.g., if there is no ``crouched door'' in the image).
+\end{enumerate}
+
+\subsubsection{Benchmark Datasets for M-LQE Evaluation}
+We evaluate M-LQE against Vanilla CLIP cross-encoders on three real-world compositional retrieval benchmarks:
 \begin{itemize}
-    \item \textbf{Caption RAG}: Vision-Language models pre-generate image captions. LQE runs regex matching over these captions to prevent visual vector search false positives (e.g., keeping the search locked onto \textit{``sinking boats''} rather than \textit{``sinking charts''}).
-    \item \textbf{Discrete Visual Tokens}: Generative models represent images as grids of discrete visual codebook indices. The LQE harness can expand text queries into regex patterns of visual tokens (e.g., translating \textit{``blue boat''} to a sequence of color and edge tokens) and run \texttt{ripgrep} directly over raw tokenized image files.
+    \item \textbf{ARO (Attribution, Relation, and Order)} \cite{yuksekgonul2022and}: A large-scale diagnostic dataset (50k+ samples) testing attribution (e.g. \textit{``open door and crouched man''} vs. \textit{``crouched door and open man''}), relation, and word order.
+    \item \textbf{Winoground} \cite{thrush2022winoground}: A hand-curated dataset of 400 minimal image-caption pairs using the exact same set of words in different configurations, designed to test visio-linguistic compositionality.
+    \item \textbf{Visual Genome (VG)} \cite{krishna2017visual}: A dense annotation dataset of objects localized with bounding boxes and labeled attributes, allowing verification of structural M-LQE queries against ground-truth scene graphs.
 \end{itemize}
 
 \begin{thebibliography}{99}
@@ -279,6 +299,26 @@ Anthropic. 2026.
 Anysphere. 2026.
 \newblock Cursor: Hybrid Trigram and Semantic Search Architecture for Large Codebases.
 \newblock {\em Technical Blog, Cursor}.
+
+\bibitem{radford2021learning}
+Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. 2021.
+\newblock Learning Transferable Visual Models From Natural Language Supervision.
+\newblock {\em International Conference on Machine Learning (ICML)}.
+
+\bibitem{yuksekgonul2022and}
+Mert Yuksekgonul, Federico Fini, Edward James, and James Zou. 2022.
+\newblock When and Why Are Vision-Language Models Like Bags-of-Words?
+\newblock {\em arXiv preprint arXiv:2210.01919}.
+
+\bibitem{thrush2022winoground}
+Tristan Thrush, Ryan Aubier, Mitchell Wortsman, and Suchin Gururangan. 2022.
+\newblock Winoground: Probing Visio-Linguistic Compositionality in Image-Text Models.
+\newblock {\em Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}.
+
+\bibitem{krishna2017visual}
+Ranjay Krishna, Yuke Zhu, Oliver Groth, Jaemin Johnson, Kenji Hata, Joshua Kravitz, Stephanie Chen, Yannis Kalantidis, Li-Jia Li, David A. Shamma, et al. 2017.
+\newblock Visual Genome: Connecting Language and Vision Using Crowdsourced Dense Image Annotations.
+\newblock {\em International Journal of Computer Vision (IJCV)}.
 
 \end{thebibliography}
 
