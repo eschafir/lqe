@@ -1,3 +1,7 @@
+import sys
+# Force torchaudio to be treated as unavailable to prevent binary loading crashes
+sys.modules['torchaudio'] = None
+
 import os
 import math
 import argparse
