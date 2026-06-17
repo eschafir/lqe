@@ -77,7 +77,15 @@ def main():
         
         try:
             res = vlm_pipe(messages, max_new_tokens=10)
-            pred_text = res[0]["generated_text"].strip()
+            pred_text = res[0]["generated_text"]
+            if isinstance(pred_text, list):
+                try:
+                    pred_text = pred_text[-1]["content"]
+                except (IndexError, KeyError, TypeError):
+                    pred_text = str(pred_text)
+            else:
+                pred_text = str(pred_text)
+            pred_text = pred_text.strip()
             
             # Simple parsing of response: check if A or B is in the output
             # Clean up punctuation
