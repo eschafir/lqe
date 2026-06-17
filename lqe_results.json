@@ -2,43 +2,112 @@
   "10": {
     "grep": {
       "accuracy": 0.0,
-      "avg_tokens": 5.666666666666667
+      "avg_tokens": 5.266666666666667,
+      "avg_search_tokens": 0.0
     },
     "lqe_grep": {
       "accuracy": 0.8333333333333334,
-      "avg_tokens": 45.666666666666664
+      "avg_tokens": 42.6,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "lqe_grep_v2": {
+      "accuracy": 0.8,
+      "avg_tokens": 42.06666666666667,
+      "avg_search_tokens": 555.1666666666666
     },
     "vector": {
-      "accuracy": 0.3333333333333333,
-      "avg_tokens": 42.5
+      "accuracy": 0.36666666666666664,
+      "avg_tokens": 43.0,
+      "avg_search_tokens": 0.0
+    },
+    "cursor_hybrid": {
+      "accuracy": 0.8333333333333334,
+      "avg_tokens": 42.06666666666667,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "sandboxed_python": {
+      "accuracy": 0.0,
+      "avg_tokens": 1.3333333333333333,
+      "avg_search_tokens": 257.0
+    },
+    "iterative_grep": {
+      "accuracy": 0.16666666666666666,
+      "avg_tokens": 7.966666666666667,
+      "avg_search_tokens": 200.33333333333334
     }
   },
   "20": {
     "grep": {
       "accuracy": 0.0,
-      "avg_tokens": 8.5
+      "avg_tokens": 8.0,
+      "avg_search_tokens": 0.0
     },
     "lqe_grep": {
+      "accuracy": 0.8666666666666667,
+      "avg_tokens": 57.5,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "lqe_grep_v2": {
       "accuracy": 0.8333333333333334,
-      "avg_tokens": 62.0
+      "avg_tokens": 46.46666666666667,
+      "avg_search_tokens": 555.1666666666666
     },
     "vector": {
+      "accuracy": 0.23333333333333334,
+      "avg_tokens": 43.63333333333333,
+      "avg_search_tokens": 0.0
+    },
+    "cursor_hybrid": {
+      "accuracy": 0.7,
+      "avg_tokens": 41.733333333333334,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "sandboxed_python": {
       "accuracy": 0.0,
-      "avg_tokens": 42.5
+      "avg_tokens": 1.3333333333333333,
+      "avg_search_tokens": 257.0
+    },
+    "iterative_grep": {
+      "accuracy": 0.16666666666666666,
+      "avg_tokens": 10.7,
+      "avg_search_tokens": 200.33333333333334
     }
   },
   "35": {
     "grep": {
       "accuracy": 0.0,
-      "avg_tokens": 8.0
+      "avg_tokens": 7.933333333333334,
+      "avg_search_tokens": 0.0
     },
     "lqe_grep": {
-      "accuracy": 1.0,
-      "avg_tokens": 63.666666666666664
+      "accuracy": 0.8666666666666667,
+      "avg_tokens": 57.333333333333336,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "lqe_grep_v2": {
+      "accuracy": 0.8333333333333334,
+      "avg_tokens": 41.166666666666664,
+      "avg_search_tokens": 555.1666666666666
     },
     "vector": {
+      "accuracy": 0.06666666666666667,
+      "avg_tokens": 42.46666666666667,
+      "avg_search_tokens": 0.0
+    },
+    "cursor_hybrid": {
+      "accuracy": 0.5333333333333333,
+      "avg_tokens": 25.066666666666666,
+      "avg_search_tokens": 555.1666666666666
+    },
+    "sandboxed_python": {
       "accuracy": 0.0,
-      "avg_tokens": 42.166666666666664
+      "avg_tokens": 1.3333333333333333,
+      "avg_search_tokens": 257.0
+    },
+    "iterative_grep": {
+      "accuracy": 0.16666666666666666,
+      "avg_tokens": 10.633333333333333,
+      "avg_search_tokens": 200.33333333333334
     }
   }
 }
