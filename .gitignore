@@ -9,3 +9,7 @@ __pycache__/
 lqe_real_results.json
 lqe_nfcorpus_results.json
 evaluation_results.png
+
+# Secrets
+.env
+*.env

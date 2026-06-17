@@ -14,7 +14,23 @@ from tqdm import tqdm
 from datasets import load_dataset
 from PIL import Image
 
+def load_env_file(dotenv_path=".env"):
+    """Reads a local .env file and sets key-value pairs in os.environ without requiring external packages."""
+    if os.path.exists(dotenv_path):
+        with open(dotenv_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip().strip('"').strip("'")
+                    os.environ[key] = val
+
 def main():
+    load_env_file()
+    
     parser = argparse.ArgumentParser(description="VLM/NIM Evaluation on ARO Visual Attribution")
     parser.add_argument("--provider", type=str, choices=["hf", "nim"], default="hf", help="Model API provider")
     parser.add_argument("--model", type=str, default="Qwen/Qwen2-VL-2B-Instruct", help="Model key/name")
@@ -24,6 +40,10 @@ def main():
     parser.add_argument("--output", type=str, default="vlm_aro_results.json", help="Path to save result JSON")
     args = parser.parse_args()
     
+    # Fallback to environment variable if argument is not provided
+    if not args.api_key:
+        args.api_key = os.environ.get("NVIDIA_API_KEY", "")
+        
     # Adjust default model for NIM if unchanged
     if args.provider == "nim" and args.model == "Qwen/Qwen2-VL-2B-Instruct":
         args.model = "meta/llama-3.2-11b-vision-instruct"
