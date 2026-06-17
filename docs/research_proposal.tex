@@ -242,26 +242,48 @@ We propose two primary avenues of future optimization and extension:
 Although dynamic frequency filtering reduces the token footprint by over 45\%, further efficiency gains can be achieved by integrating part-of-speech (POS) taggers to filter out weak verbs and adjectives during LLM query expansion, leaving only highly discriminative nouns.
 
 \subsection{Multimodal Lexical Query Expansion (M-LQE)}
-The core philosophy of LQE---decomposing queries, performing targeted expansion, and pruning distractors---can be extended to cross-modal text-to-image (T2I) and image-to-image (I2I) search to resolve the key vulnerability of modern Vision-Language Models (VLMs) and dual-encoders: \textbf{the bag-of-words and attribute-binding limits}.
+The core philosophy of LQE---decomposing queries, performing targeted expansion, and enforcing strict structural rules---can be extended to cross-modal text-to-image (T2I) and image-to-image (I2I) retrieval. This address a critical limitation of modern dual-encoder models like CLIP \cite{radford2021learning}: \textbf{the bag-of-words and attribute-binding bottleneck}.
 
-Standard multimodal models like CLIP \cite{radford2021learning} often suffer from compositionality failures. For instance, when presented with a query like \textit{``a red square and a blue circle''}, CLIP yields high similarity scores for images containing a \textit{blue square and a red circle} because it matches the presence of all words but fails to bind adjectives to their corresponding nouns. 
+Standard multimodal models are blind to compositional structure. For example, when presented with the query \textit{``a red car and a blue building''}, CLIP yields high similarity scores for images containing a \textit{blue car next to a red building} because it matches the global presence of all words but fails to bind adjectives to their corresponding nouns.
 
-To solve this, we introduce \textbf{M-LQE}. The pipeline consists of two phases:
+\subsubsection{Hacking CLIP Embeddings: Pilot Experimental Failures}
+We conducted a pilot evaluation on the standard \textbf{ARO (Attribution, Relation, and Order) Visual Attribution dataset} \cite{yuksekgonul2022and} across 200 samples to test if CLIP-based embedding modifications could solve this bottleneck. We evaluated three methods:
 \begin{enumerate}
-    \item \textbf{Query Decomposition}: The user's text query is parsed by an LLM middleware into a structured JSON schema of objects, attributes, and relationships:
-    \begin{quote}
-        \texttt{[\{"object": "square", "attributes": ["red"]\}, \{"object": "circle", "attributes": ["blue"]\}]}
-    \end{quote}
-    \item \textbf{Structured Matching (Compositional Scoring)}:
-    Instead of encoding the entire caption as a single string, the query components are encoded separately. The similarity of the candidate image $I$ to the caption $C$ is computed as the product or average of its cosine similarities to each decomposed component $s \in C$:
-    \begin{equation}
-        Score(I, C) = \prod_{s \in C} sim(I, s) \quad \text{or} \quad \frac{1}{|C|} \sum_{s \in C} sim(I, s)
-    \end{equation}
-    This enforces strict lexical and attribute-binding verification, pulling the score down if any single component matches poorly (e.g., if there is no ``crouched door'' in the image).
+    \item \textbf{Vanilla CLIP}: Cross-modal matching of the full caption against the image. (Accuracy: \textbf{55.50\%}).
+    \item \textbf{Component Splitting}: Decomposing the query into segments (e.g., \textit{``open door''}, \textit{``crouched man''}), encoding them in isolation, and taking their average/product similarity. (Accuracy: \textbf{48.50\%} / \textbf{48.00\%}).
+    \item \textbf{Grounded Object Cropping}: Physically cropping the image around the object's bounding box and matching the crop against object-adjective prompts. (Accuracy: \textbf{41.50\%}).
 \end{enumerate}
 
+These experiments revealed two vital limitations:
+*   \textbf{Visual OOD Shift}: CLIP was pre-trained on full natural images, not on tiny, cropped patches. Zooming/cropping distorts scale and resolution, shifting the visual representation out-of-distribution (OOD) for the Vision Transformer (ViT) and degrading the embedding quality.
+*   \textbf{Token Dilution and Noun Bias}: In isolated components, the noun (e.g., \textit{``door''}) dominates the embedding. When the image embedding is degraded, the relative difference of the adjectives (e.g., \textit{``open''} vs. \textit{``crouched''}) is washed out, and the classification is dominated by the text encoder's intrinsic vocabulary priors.
+
+\subsubsection{The Proposed Architecture: VLM-based Caption-RAG}
+To resolve this compositionality bottleneck, we introduce a **VLM-based Caption-RAG (VLM-to-Text)** architecture. Instead of matching vectors in a blind embedding space, this method leverages the deep cross-attention layers of a Vision-Language Model (VLM) like Qwen2-VL or Llama-Vision to translate visual concepts into precise, structured text.
+
+The M-LQE search system operates in two phases:
+
+\begin{enumerate}
+    \item \textbf{Offline Database Indexing (VLM Captioning)}:
+    Every image in the database is processed by the VLM once offline. The VLM generates a highly detailed description of all objects, attributes, and spatial relationships:
+    \begin{quote}
+        \textit{Image} $\rightarrow$ \texttt{VLM Description: "A photo of a red car parked next to a blue brick building."}
+    \end{quote}
+    These descriptions are stored as the text-retrieval corpus.
+    
+    \item \textbf{Online Harness-level LQE Search}:
+    When a user inputs a natural language search query, the harness LLM decomposes the query into an optimized, word-boundary protected regex pattern enforcing the attributes:
+    \begin{quote}
+        \textit{User Query: "red car and blue building"} $\rightarrow$ \\
+        \texttt{Regex: \textbackslash b(red|crimson)\textbackslash b.*\textbackslash b(car|vehicle)\textbackslash b.*\textbackslash b(blue|azure)\textbackslash b.*\textbackslash b(building|house)\textbackslash b}
+    \end{quote}
+    The harness runs a native text search (\texttt{ripgrep}) using this regex directly over the corpus of VLM-generated captions.
+\end{enumerate}
+
+This completely bypasses CLIP's visual binding errors by moving the search from the visual embedding space to the text space, combining VLM reasoning with LQE's execution speed.
+
 \subsubsection{Benchmark Datasets for M-LQE Evaluation}
-We evaluate M-LQE against Vanilla CLIP cross-encoders on three real-world compositional retrieval benchmarks:
+We evaluate M-LQE on three real-world compositional retrieval benchmarks:
 \begin{itemize}
     \item \textbf{ARO (Attribution, Relation, and Order)} \cite{yuksekgonul2022and}: A large-scale diagnostic dataset (50k+ samples) testing attribution (e.g. \textit{``open door and crouched man''} vs. \textit{``crouched door and open man''}), relation, and word order.
     \item \textbf{Winoground} \cite{thrush2022winoground}: A hand-curated dataset of 400 minimal image-caption pairs using the exact same set of words in different configurations, designed to test visio-linguistic compositionality.
