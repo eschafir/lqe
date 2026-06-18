@@ -15,9 +15,15 @@ import torch
 from PIL import Image, ImageDraw
 from datasets import load_dataset
 
-CACHE_FILE = "vlm_captions_cache.json"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+results_dir = os.path.join(project_root, "results")
 
-def load_env_file(dotenv_path=".env"):
+CACHE_FILE = os.path.join(results_dir, "vlm_captions_cache.json")
+
+def load_env_file(dotenv_path=None):
+    if dotenv_path is None:
+        dotenv_path = os.path.join(project_root, ".env")
     if os.path.exists(dotenv_path):
         with open(dotenv_path, "r") as f:
             for line in f:
@@ -59,7 +65,7 @@ def extract_tensor(output):
         return output[0]
     return output
 
-CLIP_CACHE_FILE = "clip_embeddings_cache.json"
+CLIP_CACHE_FILE = os.path.join(results_dir, "clip_embeddings_cache.json")
 
 def load_clip_cache():
     if os.path.exists(CLIP_CACHE_FILE):
@@ -455,7 +461,7 @@ def main():
     top_item = scores[0][0]
     top_score = scores[0][1]
     top_image = top_item["image"]
-    output_path = "retrieved_output.png"
+    output_path = os.path.join(results_dir, "retrieved_output.png")
     top_image.save(output_path)
     
     if method_choice == "5" and top_score == 0.0:

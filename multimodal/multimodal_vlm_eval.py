@@ -29,14 +29,15 @@ def load_env_file(dotenv_path=".env"):
                     os.environ[key] = val
 
 def main():
-    load_env_file()
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    load_env_file(os.path.join(project_root, ".env"))
     
     parser = argparse.ArgumentParser(description="VLM/NIM Evaluation on ARO Visual Attribution")
     parser.add_argument("--provider", type=str, choices=["hf", "nim"], default="hf", help="Model API provider")
     parser.add_argument("--model", type=str, default="Qwen/Qwen2-VL-2B-Instruct", help="Model key/name")
     parser.add_argument("--api-key", type=str, default="", help="NVIDIA NIM API key")
     parser.add_argument("--num-samples", type=int, default=50, help="Number of test samples to evaluate")
-    parser.add_argument("--output", type=str, default="vlm_aro_results.json", help="Path to save result JSON")
+    parser.add_argument("--output", type=str, default=os.path.join(project_root, "results", "vlm_aro_results.json"), help="Path to save result JSON")
     args = parser.parse_args()
     
     # Hardcode base URL to NVIDIA Cloud API Catalog with environment override fallback

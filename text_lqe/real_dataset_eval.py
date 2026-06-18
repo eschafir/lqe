@@ -7,9 +7,10 @@ import time
 import torch
 import torch.nn.functional as F
 
-# Add project root to sys.path to find src.models
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
+# Add project root parent to sys.path to find src.models
+project_parent = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_parent)
+sys.path.insert(0, os.path.join(project_parent, "subspace-search"))
 
 from src.models import load, best_gpu
 
@@ -448,7 +449,9 @@ def main():
     
     # Load dataset
     print("Loading LongMemEval dataset...")
-    with open("data/longmemeval_s_cleaned.json", "r") as f:
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dataset_path = os.path.join(project_root, "data", "longmemeval_s_cleaned.json")
+    with open(dataset_path, "r") as f:
         all_data = json.load(f)
         
     # Filter for single-session-user to test direct retrieval QA
@@ -490,7 +493,7 @@ def main():
         results[method] = {"accuracy": acc, "avg_tokens": tok, "avg_search_tokens": search_tok}
         
     # Save results
-    output_path = "lqe_real_results.json"
+    output_path = os.path.join(project_root, "results", "lqe_real_results.json")
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
         

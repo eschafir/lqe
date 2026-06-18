@@ -11,9 +11,10 @@ import torch
 from PIL import Image
 from datasets import load_dataset
 
-# Add project root and subspace-search to sys.path to find src.models
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
+# Add project root parent to sys.path to find src.models
+project_parent = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_parent)
+sys.path.insert(0, os.path.join(project_parent, "subspace-search"))
 
 def rule_based_parse(caption: str) -> list[str]:
     """Parse a simple ARO caption into distinct object-attribute components using regex rules."""
@@ -73,7 +74,8 @@ def main():
     parser.add_argument("--llm-model", type=str, default="qwen-1.5b", help="LLM key for parser (if using llm parser)")
     parser.add_argument("--parser", type=str, choices=["rule", "llm"], default="rule", help="Query parsing strategy")
     parser.add_argument("--num-samples", type=int, default=50, help="Number of test samples to evaluate")
-    parser.add_argument("--output", type=str, default="mlqe_aro_results.json", help="Path to save result JSON")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    parser.add_argument("--output", type=str, default=os.path.join(project_root, "results", "mlqe_aro_results.json"), help="Path to save result JSON")
     args = parser.parse_args()
     
     device = "cuda" if torch.cuda.is_available() else "cpu"

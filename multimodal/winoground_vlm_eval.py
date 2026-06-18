@@ -117,12 +117,16 @@ def create_composite_image(img0, img1):
 
 def main():
     load_env_file()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    default_output = os.path.join(project_root, "results", "winoground_vlm_results.json")
+    
     parser = argparse.ArgumentParser(description="VLM Evaluation on Winoground")
     parser.add_argument("--provider", type=str, choices=["hf", "nim"], default="hf", help="Model API provider")
     parser.add_argument("--model", type=str, default="Qwen/Qwen2-VL-2B-Instruct", help="Model key/name")
     parser.add_argument("--api-key", type=str, default="", help="NVIDIA NIM API key")
     parser.add_argument("--num-samples", type=int, default=50, help="Number of test samples to evaluate")
-    parser.add_argument("--output", type=str, default="winoground_vlm_results.json", help="Path to save result JSON")
+    parser.add_argument("--output", type=str, default=default_output, help="Path to save result JSON")
     args = parser.parse_args()
     
     base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")

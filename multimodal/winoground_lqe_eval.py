@@ -52,11 +52,12 @@ def extract_tensor(output):
     return output
 
 def main():
-    load_env_file()
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    load_env_file(os.path.join(project_root, ".env"))
     parser = argparse.ArgumentParser(description="M-LQE CLIP Evaluation on Winoground")
     parser.add_argument("--model", type=str, default="openai/clip-vit-base-patch32", help="Pretrained CLIP model key")
     parser.add_argument("--num-samples", type=int, default=100, help="Number of test samples to evaluate (max 400)")
-    parser.add_argument("--output", type=str, default="winoground_clip_results.json", help="Path to save result JSON")
+    parser.add_argument("--output", type=str, default=os.path.join(project_root, "results", "winoground_clip_results.json"), help="Path to save result JSON")
     args = parser.parse_args()
     
     device = "cuda" if torch.cuda.is_available() else "cpu"

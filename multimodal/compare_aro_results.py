@@ -3,20 +3,26 @@ import os
 import argparse
 
 def main():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    default_clip = os.path.join(project_root, "results", "mlqe_aro_results.json")
+    default_vlm = os.path.join(project_root, "results", "vlm_aro_results.json")
+    default_output = os.path.join(project_root, "results", "aro_comparison_results.md")
+
     parser = argparse.ArgumentParser(description="Compare CLIP and VLM ARO Results")
-    parser.add_argument("--clip-results", type=str, default="clip_results.json", help="Path to CLIP results JSON")
-    parser.add_argument("--vlm-results", type=str, default="vlm_results.json", help="Path to VLM results JSON")
-    parser.add_argument("--output", type=str, default="", help="Path to save comparison markdown")
+    parser.add_argument("--clip-results", type=str, default=default_clip, help="Path to CLIP results JSON")
+    parser.add_argument("--vlm-results", type=str, default=default_vlm, help="Path to VLM results JSON")
+    parser.add_argument("--output", type=str, default=default_output, help="Path to save comparison markdown")
     args = parser.parse_args()
     
     if not os.path.exists(args.clip_results):
         print(f"Error: CLIP results file not found at {args.clip_results}")
-        print("Please run: python multimodal_lqe_eval.py --num-samples 100 --output clip_results.json")
+        print("Please run: python multimodal/multimodal_lqe_eval.py --num-samples 100 --output results/mlqe_aro_results.json")
         return
         
     if not os.path.exists(args.vlm_results):
         print(f"Error: VLM results file not found at {args.vlm_results}")
-        print("Please run: python multimodal_vlm_eval.py --provider nim --model meta/llama-3.2-11b-vision-instruct --num-samples 100 --output vlm_results.json")
+        print("Please run: python multimodal/multimodal_vlm_eval.py --provider nim --model meta/llama-3.2-11b-vision-instruct --num-samples 100 --output results/vlm_aro_results.json")
         return
 
     with open(args.clip_results, "r") as f:

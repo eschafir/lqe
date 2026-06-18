@@ -5,9 +5,13 @@ import matplotlib.patches as mpatches
 
 def main():
     # Detect available result files
-    synthetic_path = "lqe_results.json"
-    real_path = "lqe_real_results.json"
-    nfcorpus_path = "lqe_nfcorpus_results.json"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    results_dir = os.path.join(project_root, "results")
+    
+    synthetic_path = os.path.join(results_dir, "lqe_results.json")
+    real_path = os.path.join(results_dir, "lqe_real_results.json")
+    nfcorpus_path = os.path.join(results_dir, "lqe_nfcorpus_results.json")
     
     synthetic_exists = os.path.exists(synthetic_path)
     real_exists = os.path.exists(real_path)
@@ -256,7 +260,7 @@ def main():
     plt.tight_layout()
     plt.subplots_adjust(top=top_val, bottom=bottom_val)
     
-    output_path = "evaluation_results.png"
+    output_path = os.path.join(results_dir, "evaluation_results.png")
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     print(f"Plot successfully saved to {output_path}")
 

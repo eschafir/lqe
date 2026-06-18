@@ -19,9 +19,10 @@ import time
 import torch
 import torch.nn.functional as F
 
-# Add project root to sys.path to find src.models
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
+# Add project root parent to sys.path to find src.models
+project_parent = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_parent)
+sys.path.insert(0, os.path.join(project_parent, "subspace-search"))
 
 from src.models import load, best_gpu
 from synthetic_memory import generate_benchmark_dataset, CATEGORIES
@@ -410,7 +411,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="qwen-1.5b", help="Model key from src/models.py")
     parser.add_argument("--num-examples", type=int, default=5, help="Number of examples per category (6 categories total)")
-    parser.add_argument("--output", type=str, default=os.path.join(os.path.dirname(__file__), "lqe_results.json"), help="Path to save result JSON")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    parser.add_argument("--output", type=str, default=os.path.join(project_root, "results", "lqe_results.json"), help="Path to save result JSON")
     parser.add_argument("--methods", type=str, default="grep,lqe_grep,lqe_grep_v2,vector", help="Comma-separated list of methods to run")
     args = parser.parse_args()
     

@@ -8,9 +8,10 @@ import time
 import torch
 import torch.nn.functional as F
 
-# Add project root to sys.path to find src.models
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "subspace-search"))
+# Add project root parent to sys.path to find src.models
+project_parent = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_parent)
+sys.path.insert(0, os.path.join(project_parent, "subspace-search"))
 
 from src.models import load, best_gpu
 
@@ -338,8 +339,10 @@ def main():
     
     # Load corpus
     print("Loading corpus...")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     corpus = {}
-    with open("data/nfcorpus/corpus.jsonl", "r") as f:
+    corpus_path = os.path.join(project_root, "data", "nfcorpus", "corpus.jsonl")
+    with open(corpus_path, "r") as f:
         for line in f:
             doc = json.loads(line)
             corpus[doc["_id"]] = doc
@@ -358,7 +361,8 @@ def main():
     # Load queries
     print("Loading queries...")
     queries = {}
-    with open("data/nfcorpus/queries.jsonl", "r") as f:
+    queries_path = os.path.join(project_root, "data", "nfcorpus", "queries.jsonl")
+    with open(queries_path, "r") as f:
         for line in f:
             q = json.loads(line)
             queries[q["_id"]] = q
@@ -366,7 +370,8 @@ def main():
     # Load relevance labels (qrels)
     print("Loading relevance judgments (qrels)...")
     qrels = {}
-    with open("data/nfcorpus/qrels/test.tsv", "r") as f:
+    qrels_path = os.path.join(project_root, "data", "nfcorpus", "qrels", "test.tsv")
+    with open(qrels_path, "r") as f:
         f.readline() # Skip header
         for line in f:
             q_id, doc_id, score = line.strip().split("\t")
@@ -510,9 +515,10 @@ def main():
         results[method] = {"success_at_3": acc, "avg_tokens": avg_tok, "avg_search_tokens": avg_search_tok}
         
     # Save results
-    with open("lqe_nfcorpus_results.json", "w") as f:
+    output_path = os.path.join(project_root, "results", "lqe_nfcorpus_results.json")
+    with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
-    print("Results saved to lqe_nfcorpus_results.json")
+    print(f"Results saved to {output_path}")
 
 if __name__ == "__main__":
     main()
