@@ -173,6 +173,13 @@ Under forced vocabulary mismatch, Vanilla Grep fails completely. Vector search f
 \end{tabular}
 \end{table}
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\textwidth]{../results/evaluation_results.png}
+\caption{LQE-Grep Evaluation Benchmark Suite: QA Accuracy and Token Footprint curves on the Synthetic, LongMemEval, and NFCorpus datasets.}
+\label{fig:evaluation_results}
+\end{figure}
+
 \subsection{Benchmark B & C: Real-World Dataset Evaluations}
 On real-world datasets, LQE-Grep matches the high success rate of Vanilla Grep and doubles the performance of Vector Search, which suffers from the truncation bottleneck on long files and semantic blurring on medical terms (see Table~\ref{tab:real_results}).
 
@@ -298,6 +305,13 @@ M-LQE (Grounded Fusion) & 46.50\% & Localized & $\text{sim}(\mathbf{v}_I, \mathb
 VLM (Llama-3.2-11B-Vision) & \textbf{75.50\%} & Cross-Attention & $\text{softmax}(\text{VLM}(\text{Image}, \text{Prompt}))$ \\ \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\textwidth]{../results/multimodal_evaluation_results.png}
+\caption{Multimodal Compositionality \& Visual Attribution Benchmark Suite: comparative results of CLIP, M-LQE, and VLM on the ARO and Winoground datasets.}
+\label{fig:multimodal_results}
+\end{figure}
 
 These experiments revealed two vital limitations of dual-encoder embedding manipulations:
 \begin{itemize}
