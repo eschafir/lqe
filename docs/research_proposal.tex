@@ -247,16 +247,59 @@ The core philosophy of LQE---decomposing queries, performing targeted expansion,
 Standard multimodal models are blind to compositional structure. For example, when presented with the query \textit{``a red car and a blue building''}, CLIP yields high similarity scores for images containing a \textit{blue car next to a red building} because it matches the global presence of all words but fails to bind adjectives to their corresponding nouns.
 
 \subsubsection{Hacking CLIP Embeddings: Pilot Experimental Failures}
-We conducted a pilot evaluation on the standard \textbf{ARO (Attribution, Relation, and Order) Visual Attribution dataset} \cite{yuksekgonul2022and} across 200 samples to test if CLIP-based embedding modifications could solve this bottleneck. We evaluated three methods:
+We conducted a pilot evaluation on the standard \textbf{ARO (Attribution, Relation, and Order) Visual Attribution dataset} \cite{yuksekgonul2022and} across 200 samples to test if CLIP-based embedding modifications could solve the attribute-binding bottleneck. We evaluated five distinct M-LQE variants alongside Vanilla CLIP and VLM baselines:
+
 \begin{enumerate}
-    \item \textbf{Vanilla CLIP}: Cross-modal matching of the full caption against the image. (Accuracy: \textbf{55.50\%}).
-    \item \textbf{Component Splitting}: Decomposing the query into segments (e.g., \textit{``open door''}, \textit{``crouched man''}), encoding them in isolation, and taking their average/product similarity. (Accuracy: \textbf{48.50\%} / \textbf{48.00\%}).
-    \item \textbf{Grounded Object Cropping}: Physically cropping the image around the object's bounding box and matching the crop against object-adjective prompts. (Accuracy: \textbf{41.50\%}).
+    \item \textbf{M-LQE (Average Similarity)}: Decomposes the caption $T$ into $M$ distinct attribute-object components $\{c_j\}_{j=1}^M$. The matching score is the arithmetic mean of the individual CLIP similarities between the global image embedding $\mathbf{v}_I$ and each component template embedding $\mathbf{v}_{c_j}$ (e.g., \textit{``a photo of a [component]''}):
+    \begin{equation}
+        S_{\text{avg}} = \frac{1}{M}\sum_{j=1}^M \text{sim}(\mathbf{v}_I, \mathbf{v}_{c_j})
+    \end{equation}
+    
+    \item \textbf{M-LQE (Product Similarity)}: Computes the product of the individual component similarities. This acts as a soft logical conjunction (\texttt{AND} gate) to enforce the simultaneous presence of all described entities:
+    \begin{equation}
+        S_{\text{prod}} = \prod_{j=1}^M \text{sim}(\mathbf{v}_I, \mathbf{v}_{c_j})
+    \end{equation}
+    
+    \item \textbf{M-LQE (Hybrid Similarity)}: Combines global scene semantics (Vanilla CLIP score) with component-level checks (Average similarity) using a scaling factor $\beta = 0.5$:
+    \begin{equation}
+        S_{\text{hybrid}} = \text{sim}(\mathbf{v}_I, \mathbf{v}_T) + \beta \cdot S_{\text{avg}}
+    \end{equation}
+    
+    \item \textbf{M-LQE (Grounded Crop)}: Isolates the primary object in the image by cropping it according to its bounding box $I_{\text{crop}}$. The cropped image embedding $\mathbf{v}_{I_{\text{crop}}}$ is then matched directly against the specific attribute-object text templates:
+    \begin{equation}
+        S_{\text{crop}} = \text{sim}(\mathbf{v}_{I_{\text{crop}}}, \mathbf{v}_{t_{\text{attr\_obj}}})
+    \end{equation}
+    
+    \item \textbf{M-LQE (Grounded Fusion)}: Blends the global context score with the localized crop similarity using a scaling factor $\gamma = 0.5$ to retain spatial detail without completely discarding scene context:
+    \begin{equation}
+        S_{\text{fusion}} = \text{sim}(\mathbf{v}_I, \mathbf{v}_T) + \gamma \cdot S_{\text{crop}}
+    \end{equation}
 \end{enumerate}
 
-These experiments revealed two vital limitations:
-*   \textbf{Visual OOD Shift}: CLIP was pre-trained on full natural images, not on tiny, cropped patches. Zooming/cropping distorts scale and resolution, shifting the visual representation out-of-distribution (OOD) for the Vision Transformer (ViT) and degrading the embedding quality.
-*   \textbf{Token Dilution and Noun Bias}: In isolated components, the noun (e.g., \textit{``door''}) dominates the embedding. When the image embedding is degraded, the relative difference of the adjectives (e.g., \textit{``open''} vs. \textit{``crouched''}) is washed out, and the classification is dominated by the text encoder's intrinsic vocabulary priors.
+The empirical results for these methods are summarized in Table~\ref{tab:aro_results}.
+
+\begin{table}[ht]
+\centering
+\caption{Performance on the ARO Visual Attribution Benchmark ($N=200$)}
+\label{tab:aro_results}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Method} & \textbf{Accuracy} & \textbf{Type} & \textbf{Mathematical/Logical Formula} \\ \midrule
+Vanilla CLIP & 55.50\% & Global & $\text{sim}(\mathbf{v}_I, \mathbf{v}_T)$ \\
+M-LQE (Average) & 48.50\% & Decomposed & $\frac{1}{M}\sum_{j} \text{sim}(\mathbf{v}_I, \mathbf{v}_{c_j})$ \\
+M-LQE (Product) & 48.00\% & Decomposed & $\prod_{j} \text{sim}(\mathbf{v}_I, \mathbf{v}_{c_j})$ \\
+M-LQE (Hybrid) & 50.50\% & Hybrid & $\text{sim}(\mathbf{v}_I, \mathbf{v}_T) + \beta \cdot S_{\text{avg}}$ \\
+M-LQE (Grounded Crop) & 41.50\% & Localized & $\text{sim}(\mathbf{v}_{I_{\text{crop}}}, \mathbf{v}_{t_{\text{attr\_obj}}})$ \\
+M-LQE (Grounded Fusion) & 46.50\% & Localized & $\text{sim}(\mathbf{v}_I, \mathbf{v}_T) + \gamma \cdot S_{\text{crop}}$ \\
+VLM (Llama-3.2-11B-Vision) & \textbf{75.50\%} & Cross-Attention & $\text{softmax}(\text{VLM}(\text{Image}, \text{Prompt}))$ \\ \bottomrule
+\end{tabular}
+\end{table}
+
+These experiments revealed two vital limitations of dual-encoder embedding manipulations:
+\begin{itemize}
+    \item \textbf{Visual OOD Shift}: CLIP was pre-trained on full natural images, not on tiny, cropped patches. Zooming/cropping distorts scale and resolution, shifting the visual representation out-of-distribution (OOD) for the Vision Transformer (ViT) and degrading the embedding quality (evidenced by Grounded Crop's low 41.50\% accuracy).
+    \item \textbf{Token Dilution and Noun Bias}: In isolated components, the noun (e.g., \textit{``door''}) dominates the embedding. When the image embedding is degraded, the relative difference of the adjectives (e.g., \textit{``open''} vs. \textit{``crouched''}) is washed out, and the classification is dominated by the text encoder's intrinsic vocabulary priors.
+\end{itemize}
 
 \subsubsection{The Proposed Architecture: VLM-based Caption-RAG}
 To resolve this compositionality bottleneck, we introduce a **VLM-based Caption-RAG (VLM-to-Text)** architecture. Instead of matching vectors in a blind embedding space, this method leverages the deep cross-attention layers of a Vision-Language Model (VLM) like Qwen2-VL or Llama-Vision to translate visual concepts into precise, structured text.
@@ -282,7 +325,38 @@ The M-LQE search system operates in two phases:
 
 This completely bypasses CLIP's visual binding errors by moving the search from the visual embedding space to the text space, combining VLM reasoning with LQE's execution speed.
 
-To validate this visual reasoning capability, we evaluated the \textbf{Llama-3.2-11B-Vision-Instruct} model on the ARO Visual Attribution benchmark (100 samples) via the NVIDIA NIM Cloud API. The VLM achieved an accuracy of \textbf{73.00\%} on the binary caption-selection task, representing a significant \textbf{+17.50\%} improvement over the Vanilla CLIP baseline (55.50\%). This confirms that the VLM's multi-modal cross-attention layers successfully resolve fine-grained attribute binding, validating its role as the high-precision indexing backbone for the M-LQE Caption-RAG system.
+To validate this visual reasoning capability, we evaluated the \textbf{Llama-3.2-11B-Vision-Instruct} model on the ARO Visual Attribution benchmark (200 samples) via the NVIDIA NIM Cloud API. The VLM achieved an accuracy of \textbf{75.50\%} on the binary caption-selection task, representing a significant \textbf{+20.00\%} improvement over the Vanilla CLIP baseline (55.50\%). This confirms that the VLM's multi-modal cross-attention layers successfully resolve fine-grained attribute binding, validating its role as the high-precision indexing backbone for the M-LQE Caption-RAG system.
+
+To illustrate this improvement, we report selected examples of CLIP attribute-binding failures successfully resolved by the VLM in the benchmark:
+\begin{itemize}
+    \item \textbf{Sample ID 20/28}: 
+    \begin{itemize}
+        \item \textbf{True Caption}: \textit{``the unpeeled banana and the square plate''}
+        \item \textbf{False Caption}: \textit{``the square banana and the unpeeled plate''}
+        \item \textbf{Behavior}: CLIP is fooled by matching the nouns globally, while the VLM correctly selects Option B (identifying that the banana is unpeeled and the plate is square).
+    \end{itemize}
+    
+    \item \textbf{Sample ID 26}: 
+    \begin{itemize}
+        \item \textbf{True Caption}: \textit{``the black table and the white plate''}
+        \item \textbf{False Caption}: \textit{``the white table and the black plate''}
+        \item \textbf{Behavior}: CLIP fails to associate colors with their respective objects. The VLM correctly binds the colors, selecting Option A.
+    \end{itemize}
+    
+    \item \textbf{Sample ID 30}: 
+    \begin{itemize}
+        \item \textbf{True Caption}: \textit{``the attached banana and the light colored plate''}
+        \item \textbf{False Caption}: \textit{``the light colored banana and the attached plate''}
+        \item \textbf{Behavior}: The VLM resolves the complex spatial relationship (attached) and attribute (light colored), selecting Option A.
+    \end{itemize}
+    
+    \item \textbf{Sample ID 34}: 
+    \begin{itemize}
+        \item \textbf{True Caption}: \textit{``the gray street and the orange wall''}
+        \item \textbf{False Caption}: \textit{``the orange street and the gray wall''}
+        \item \textbf{Behavior}: The VLM correctly identifies the respective color coordinates, selecting Option B.
+    \end{itemize}
+\end{itemize}
 
 \subsubsection{Benchmark Datasets for M-LQE Evaluation}
 We evaluate M-LQE on three real-world compositional retrieval benchmarks:
