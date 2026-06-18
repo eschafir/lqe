@@ -14,16 +14,18 @@ def main():
     parser.add_argument("--api-key", type=str, default="", help="NVIDIA NIM API key (optional, falls back to env)")
     parser.add_argument("--clip-output", type=str, default="clip_results.json", help="Path to save CLIP results JSON")
     parser.add_argument("--vlm-output", type=str, default="vlm_results.json", help="Path to save VLM results JSON")
+    parser.add_argument("--output", type=str, default="aro_comparison_results.md", help="Path to save comparison markdown table")
     
     args = parser.parse_args()
     
     print("=" * 70)
     print("           MULTIMODAL EVALUATION ORCHESTRATOR (CLIP vs VLM)")
     print("=" * 70)
-    print(f"Number of Samples: {args.num_samples}")
-    print(f"CLIP Model       : {args.clip_model}")
-    print(f"VLM Provider     : {args.vlm_provider.upper()}")
-    print(f"VLM Model        : {args.vlm_model}")
+    print(f"Number of Samples : {args.num_samples}")
+    print(f"CLIP Model        : {args.clip_model}")
+    print(f"VLM Provider      : {args.vlm_provider.upper()}")
+    print(f"VLM Model         : {args.vlm_model}")
+    print(f"Comparison Output : {args.output}")
     print("-" * 70)
     
     # 1. Run Vanilla CLIP (M-LQE) Evaluation
@@ -66,6 +68,8 @@ def main():
         "--clip-results", args.clip_output,
         "--vlm-results", args.vlm_output
     ]
+    if args.output:
+        compare_cmd.extend(["--output", args.output])
     print(f"Running command: {' '.join(compare_cmd)}")
     try:
         subprocess.run(compare_cmd, check=True)
