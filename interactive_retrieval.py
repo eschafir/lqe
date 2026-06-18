@@ -416,10 +416,16 @@ def main():
         
     # Save top-1 image
     top_item = scores[0][0]
+    top_score = scores[0][1]
     top_image = top_item["image"]
     output_path = "retrieved_output.png"
     top_image.save(output_path)
-    print(f"\nSUCCESS! Top retrieved image (ID {top_item['id']}) saved to: {output_path}")
+    
+    if method_choice == "5" and top_score == 0.0:
+        print("\nWARNING: None of the VLM captions in the database matched the query regex pattern!")
+        print(f"No match found. Saving the first image (Sample ID {top_item['id']}) as a fallback to: {output_path}")
+    else:
+        print(f"\nSUCCESS! Top retrieved image (ID {top_item['id']}) saved to: {output_path}")
 
 if __name__ == "__main__":
     main()
