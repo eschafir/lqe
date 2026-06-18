@@ -59,6 +59,24 @@ def extract_tensor(output):
         return output[0]
     return output
 
+CLIP_CACHE_FILE = "clip_embeddings_cache.json"
+
+def load_clip_cache():
+    if os.path.exists(CLIP_CACHE_FILE):
+        try:
+            with open(CLIP_CACHE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_clip_cache(cache):
+    try:
+        with open(CLIP_CACHE_FILE, "w") as f:
+            json.dump(cache, f)
+    except Exception as e:
+        print(f"Warning: Failed to save CLIP cache: {e}")
+
 def create_toy_image(shape, color, bg_color="white", size=(224, 224)):
     img = Image.new("RGB", size, bg_color)
     draw = ImageDraw.Draw(img)
@@ -378,13 +396,25 @@ def main():
         
         # 2. Compute image representations and calculate similarities
         print("Encoding database images and ranking...")
+        clip_cache = load_clip_cache()
+        cache_updated = False
+        
         for item in dataset:
-            inputs_img = clip_processor(images=item["image"], return_tensors="pt").to(device)
-            with torch.no_grad():
-                emb_i = clip_model.get_image_features(**inputs_img)
-                emb_i = extract_tensor(emb_i)
-                emb_i = emb_i / emb_i.norm(p=2, dim=-1, keepdim=True)
-                emb_i = emb_i.cpu().numpy()[0]
+            cache_key = f"clip-vit-base-patch32_{dataset_name}_{item['id']}"
+            if cache_key in clip_cache:
+                emb_i = np.array(clip_cache[cache_key], dtype=np.float32)
+            else:
+                inputs_img = clip_processor(images=item["image"], return_tensors="pt").to(device)
+                with torch.no_grad():
+                    emb_i = clip_model.get_image_features(**inputs_img)
+                    emb_i = extract_tensor(emb_i)
+                    emb_i = emb_i / emb_i.norm(p=2, dim=-1, keepdim=True)
+                    emb_i = emb_i.cpu().numpy()[0]
+                clip_cache[cache_key] = emb_i.tolist()
+                cache_updated = True
+                
+        if cache_updated:
+            save_clip_cache(clip_cache)
                 
             # Compute matching score based on selected method
             if method_choice == "1":
