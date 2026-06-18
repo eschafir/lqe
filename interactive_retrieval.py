@@ -464,5 +464,8 @@ def main():
     else:
         print(f"\nSUCCESS! Top retrieved image (ID {top_item['id']}) saved to: {output_path}")
 
+    # Clean exit to prevent PyGILState finalization crashes from PyTorch/CUDA C-extensions
+    os._exit(0)
+
 if __name__ == "__main__":
     main()
