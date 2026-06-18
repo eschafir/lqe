@@ -46,6 +46,19 @@ def save_cache(cache):
     except Exception as e:
         print(f"Warning: Failed to save caption cache: {e}")
 
+def extract_tensor(output):
+    if hasattr(output, "image_embeds"):
+        return output.image_embeds
+    if hasattr(output, "text_embeds"):
+        return output.text_embeds
+    if hasattr(output, "pooler_output"):
+        return output.pooler_output
+    if hasattr(output, "last_hidden_state"):
+        return output.last_hidden_state
+    if isinstance(output, (list, tuple)):
+        return output[0]
+    return output
+
 def create_toy_image(shape, color, bg_color="white", size=(224, 224)):
     img = Image.new("RGB", size, bg_color)
     draw = ImageDraw.Draw(img)
@@ -351,10 +364,7 @@ def main():
             inputs = clip_processor(text=[text], return_tensors="pt", padding=True).to(device)
             with torch.no_grad():
                 emb = clip_model.get_text_features(**inputs)
-                if hasattr(emb, "text_embeds"):
-                    emb = emb.text_embeds
-                elif isinstance(emb, (list, tuple)):
-                    emb = emb[0]
+                emb = extract_tensor(emb)
                 emb = emb / emb.norm(p=2, dim=-1, keepdim=True)
             return emb.cpu().numpy()[0]
             
@@ -372,10 +382,7 @@ def main():
             inputs_img = clip_processor(images=item["image"], return_tensors="pt").to(device)
             with torch.no_grad():
                 emb_i = clip_model.get_image_features(**inputs_img)
-                if hasattr(emb_i, "image_embeds"):
-                    emb_i = emb_i.image_embeds
-                elif isinstance(emb_i, (list, tuple)):
-                    emb_i = emb_i[0]
+                emb_i = extract_tensor(emb_i)
                 emb_i = emb_i / emb_i.norm(p=2, dim=-1, keepdim=True)
                 emb_i = emb_i.cpu().numpy()[0]
                 
