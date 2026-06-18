@@ -15,6 +15,8 @@ def main():
     parser.add_argument("--clip-output", type=str, default="clip_results.json", help="Path to save CLIP results JSON")
     parser.add_argument("--vlm-output", type=str, default="vlm_results.json", help="Path to save VLM results JSON")
     parser.add_argument("--output", type=str, default="aro_comparison_results.md", help="Path to save comparison markdown table")
+    parser.add_argument("--skip-clip", action="store_true", help="Skip CLIP evaluation step")
+    parser.add_argument("--skip-vlm", action="store_true", help="Skip VLM evaluation step")
     
     args = parser.parse_args()
     
@@ -26,40 +28,48 @@ def main():
     print(f"VLM Provider      : {args.vlm_provider.upper()}")
     print(f"VLM Model         : {args.vlm_model}")
     print(f"Comparison Output : {args.output}")
+    print(f"Skip CLIP Step    : {args.skip_clip}")
+    print(f"Skip VLM Step     : {args.skip_vlm}")
     print("-" * 70)
     
     # 1. Run Vanilla CLIP (M-LQE) Evaluation
-    print("\n[Step 1/3] Running CLIP/M-LQE Evaluation...")
-    clip_cmd = [
-        sys.executable, "multimodal_lqe_eval.py",
-        "--model", args.clip_model,
-        "--num-samples", str(args.num_samples),
-        "--output", args.clip_output
-    ]
-    print(f"Running command: {' '.join(clip_cmd)}")
-    try:
-        subprocess.run(clip_cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"\nError running CLIP evaluation: {e}")
-        sys.exit(1)
+    if not args.skip_clip:
+        print("\n[Step 1/3] Running CLIP/M-LQE Evaluation...")
+        clip_cmd = [
+            sys.executable, "multimodal_lqe_eval.py",
+            "--model", args.clip_model,
+            "--num-samples", str(args.num_samples),
+            "--output", args.clip_output
+        ]
+        print(f"Running command: {' '.join(clip_cmd)}")
+        try:
+            subprocess.run(clip_cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"\nError running CLIP evaluation: {e}")
+            sys.exit(1)
+    else:
+        print("\n[Step 1/3] Skipping CLIP/M-LQE Evaluation (using existing results).")
         
     # 2. Run VLM Evaluation
-    print("\n[Step 2/3] Running VLM/NIM Evaluation...")
-    vlm_cmd = [
-        sys.executable, "multimodal_vlm_eval.py",
-        "--provider", args.vlm_provider,
-        "--model", args.vlm_model,
-        "--num-samples", str(args.num_samples),
-        "--output", args.vlm_output
-    ]
-    if args.api_key:
-        vlm_cmd.extend(["--api-key", args.api_key])
-    print(f"Running command: {' '.join(vlm_cmd)}")
-    try:
-        subprocess.run(vlm_cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"\nError running VLM evaluation: {e}")
-        sys.exit(1)
+    if not args.skip_vlm:
+        print("\n[Step 2/3] Running VLM/NIM Evaluation...")
+        vlm_cmd = [
+            sys.executable, "multimodal_vlm_eval.py",
+            "--provider", args.vlm_provider,
+            "--model", args.vlm_model,
+            "--num-samples", str(args.num_samples),
+            "--output", args.vlm_output
+        ]
+        if args.api_key:
+            vlm_cmd.extend(["--api-key", args.api_key])
+        print(f"Running command: {' '.join(vlm_cmd)}")
+        try:
+            subprocess.run(vlm_cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"\nError running VLM evaluation: {e}")
+            sys.exit(1)
+    else:
+        print("\n[Step 2/3] Skipping VLM/NIM Evaluation (using existing results).")
         
     # 3. Compare Results
     print("\n[Step 3/3] Comparing Results...")
