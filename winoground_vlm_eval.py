@@ -106,8 +106,8 @@ def create_composite_image(img0, img1):
     w0 = int(img0.width * (h / img0.height))
     w1 = int(img1.width * (h / img1.height))
     
-    img0_resized = img0.resize((w0, h), Image.Resampling.LANCEZOS)
-    img1_resized = img1.resize((w1, h), Image.Resampling.LANCEZOS)
+    img0_resized = img0.resize((w0, h), Image.Resampling.LANCZOS)
+    img1_resized = img1.resize((w1, h), Image.Resampling.LANCZOS)
     
     border_width = 10
     composite = Image.new("RGB", (w0 + border_width + w1, h), (0, 0, 0))
