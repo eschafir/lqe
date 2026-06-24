@@ -1,0 +1,57 @@
+{
+  "grep": {
+    "success_at_3": 0.5042016806722689,
+    "avg_tokens": 1949.6302521008404,
+    "avg_search_tokens": 0.0
+  },
+  "lqe_grep": {
+    "success_at_3": 0.5882352941176471,
+    "avg_tokens": 5390.621848739495,
+    "avg_search_tokens": 287.5378151260504
+  },
+  "lqe_grep_v2": {
+    "success_at_3": 0.5966386554621849,
+    "avg_tokens": 3067.176470588235,
+    "avg_search_tokens": 287.5378151260504
+  },
+  "bm25": {
+    "success_at_3": 0.6386554621848739,
+    "avg_tokens": 1097.0336134453783,
+    "avg_search_tokens": 0.0
+  },
+  "mugi_gpt4": {
+    "success_at_3": 0.7478991596638656,
+    "avg_tokens": 1114.6638655462184,
+    "avg_search_tokens": 1161.672268907563
+  },
+  "mugi_gpt35": {
+    "success_at_3": 0.680672268907563,
+    "avg_tokens": 1120.9159663865546,
+    "avg_search_tokens": 289.97478991596637
+  },
+  "mugi_qwen": {
+    "success_at_3": 0.7142857142857143,
+    "avg_tokens": 1143.9579831932774,
+    "avg_search_tokens": 879.8655462184873
+  },
+  "lqe_grep_v3_stemmed": {
+    "success_at_3": 0.6134453781512605,
+    "avg_tokens": 4207.563025210084,
+    "avg_search_tokens": 287.5378151260504
+  },
+  "lqe_grep_v3_weighted": {
+    "success_at_3": 0.6386554621848739,
+    "avg_tokens": 3067.176470588235,
+    "avg_search_tokens": 287.5378151260504
+  },
+  "lqe_grep_v3_coordinated": {
+    "success_at_3": 0.5042016806722689,
+    "avg_tokens": 3986.747899159664,
+    "avg_search_tokens": 202.1596638655462
+  },
+  "lqe_grep_v4": {
+    "success_at_3": 0.6638655462184874,
+    "avg_tokens": 4207.563025210084,
+    "avg_search_tokens": 287.5378151260504
+  }
+}

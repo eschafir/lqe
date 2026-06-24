@@ -1,0 +1,542 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+\usepackage{amsmath, amssymb, amsfonts, bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta}
+\usepackage{listings}
+\usepackage{color}
+
+% Color definitions for consistent styling
+\definecolor{primary}{RGB}{30, 41, 59}       % Dark Slate
+\definecolor{secondary}{RGB}{14, 116, 144}   % Teal Accent
+\definecolor{codebg}{RGB}{241, 245, 249}      % Light gray
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=secondary,
+    citecolor=secondary,
+    urlcolor=secondary
+}
+
+\title{\textbf{Comprehensive Literature Review:\\Query Expansion, Search-Augmented Reinforcement Learning, and Compositional Vision-Language Retrieval}}
+\author{\textbf{Esteban Schafir} \\ FIU Research}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This literature review provides an exhaustive and plain-language analysis of five key research papers bridging the gap between semantic understanding and lexical search. We cover: (1) classical query expansion using WordNet gloss definitions under an axiomatic retrieval framework; (2) compositional image-text matching and retrieval via entity grounding using Grounding DINO and CLIP; (3) multi-text generation integration (MuGI) for adaptive query reweighting and feature pooling; (4) few-shot LLM prompting for pseudo-document query expansion (query2doc); and (5) reinforcement learning for interleaved search-augmented reasoning loops (SEARCH-R1). Each paper is explained in detail with mathematical formulations, logical workflows, and concrete examples. Finally, we compile a unified catalog of all datasets and databases utilized across the experiments.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Paper 1: A Re-examination of Query Expansion Using Lexical Resources}
+\label{sec:paper1}
+
+\subsection{Core Problem and Motivation}
+Traditional information retrieval (IR) systems matching exact query keywords to document keywords suffer from the \textbf{vocabulary gap} (or lexical mismatch). Users frequently formulate search queries with short, informal terms, whereas relevant documents might use domain-specific terminology or synonyms. For example, a search query \texttt{"car"} will fail to retrieve documents containing only \texttt{"automobile"} or \texttt{"vehicle"}.
+
+Query expansion (QE) resolves this by adding synonym terms. Intuitively, handcrafted lexical databases such as \textbf{WordNet} should be optimal resources for query expansion. However, historical studies (e.g., Voorhees, 1994) consistently showed that expanding queries using WordNet did not yield search performance improvements and often degraded precision.
+
+Fang (2008) re-examined this failure and identified the root cause: \textbf{suboptimal term-weighting schemes}. Traditional systems weight expansion terms using collection-wide corpus statistics (like inverse document frequency), which can overwhelm the original query intent. By utilizing the \textbf{Axiomatic Retrieval Model}, this paper proves that the weight of an expanded term must be regulated directly by its semantic similarity to the original query term, scaled by the original query term's weight. When weighted properly, WordNet alone yields significant, statistically significant search performance improvements.
+
+\subsection{Methodology and Mathematical Formulations}
+The axiomatic retrieval model defines formal constraints (axioms) that a search scoring function must satisfy. For query expansion, the paper adapts a semantic matching constraint.
+
+Let $q$ be the original query term, and $d$ be a document term. The basic similarity score between a single-term query $\{q\}$ and a single-term document $\{d\}$ without query expansion is:
+\begin{equation}
+S(\{q\}, \{d\}) = \begin{cases} \omega(q) & \text{if } q = d \\ 0 & \text{if } q \neq d \end{cases}
+\end{equation}
+where $\omega(q)$ represents the weight (importance) of the query term $q$. Under the axiomatic framework, when partial matching (synonym matching) is introduced, the similarity is reformulated as:
+\begin{equation}
+S(\{q\}, \{d\}) = \omega(q) \times f(s(q, d))
+\end{equation}
+where $s(q, d)$ is a function measuring the \textbf{semantic similarity} between the query term $q$ and the document term $d$. The scaling function $f(s(q, d))$ is defined as:
+\begin{equation}
+f(s(q, d)) = \begin{cases} 1 & \text{if } q = d \\ \frac{s(q, d)}{s(q, q)} \times \beta & \text{if } q \neq d \end{cases}
+\end{equation}
+Here, $\beta \in [0, 1]$ is a tuning parameter that controls the relative weight given to expanded terms versus the original query term. This formulation guarantees that the weight of an expanded term is directly proportional to its similarity to the original query term.
+
+\subsection{Term Similarity Functions}
+The paper evaluates three categories of similarity metrics $s(q, d)$:
+
+\subsubsection{WordNet Definition Overlap (Gloss Overlap)}
+Instead of using binary synonym relationships, the paper compares the text definitions (glosses) of the synsets (synonym groups) containing the terms. Let $D(t)$ be the set of words in the glosses of all synsets containing term $t$ (excluding common stop words). The similarity $s_{\text{def}}(t_1, t_2)$ is defined as the \textbf{Jaccard Similarity Coefficient} of their definitions:
+\begin{equation}
+s_{\text{def}}(t_1, t_2) = \frac{|D(t_1) \cap D(t_2)|}{|D(t_1) \cup D(t_2)|}
+\end{equation}
+This captures descriptive overlaps across different parts-of-speech (POS) and filters out weak associations.
+
+\subsubsection{Hierarchical Lexical Relations}
+Five structural binary relations are tested: Synonym ($s_{\text{syn}}$), Hypernym ($s_{\text{hyper}}$), Hyponym ($s_{\text{hypo}}$), Holonym ($s_{\text{holo}}$), and Meronym ($s_{\text{mero}}$). For any relation $R$, the similarity is:
+\begin{equation}
+s_R(t_1, t_2) = \begin{cases} \alpha_R & \text{if } t_1 \text{ is related to } t_2 \text{ via relation } R \\ 0 & \text{otherwise} \end{cases}
+\end{equation}
+
+\subsubsection{Dependency-Based Thesaurus (Lin's Thesaurus)}
+An automatically constructed thesaurus based on grammatical dependency patterns in a large corpus (Lin, 1998):
+\begin{equation}
+s_{\text{Lin}}(t_1, t_2) = L(t_1, t_2)
+\end{equation}
+where $L(t_1, t_2)$ is the precomputed similarity score from Lin's thesaurus.
+
+\subsubsection{Combined Strategy}
+The maximum similarity score across all lexical and dependency resources is taken:
+\begin{equation}
+s_{\text{combined}}(t_1, t_2) = \max_{R \in \mathcal{R}_{set}} (s_R(t_1, t_2))
+\end{equation}
+where $\mathcal{R}_{set} = \{\text{def}, \text{syn}, \text{hyper}, \text{hypo}, \text{holo}, \text{mero}, \text{Lin}\}$.
+
+\subsection{Concrete Examples}
+Suppose the query term is \texttt{"infant"} and we evaluate candidate expansion terms \texttt{"baby"} and \texttt{"toddler"}.
+\begin{enumerate}
+    \item \textbf{Binary Synonym Relation ($s_{\text{syn}}$):}
+    WordNet explicitly catalogs \texttt{"baby"} as a synonym of \texttt{"infant"} ($s_{\text{syn}} = \alpha_{\text{syn}}$). However, \texttt{"toddler"} is classified under a different synset and is not a direct synonym ($s_{\text{syn}} = 0$), meaning it is discarded despite being highly related.
+    \item \textbf{WordNet Definition Overlap ($s_{\text{def}}$):}
+    \begin{itemize}
+        \item \textit{Gloss of infant:} \texttt{"a very young child or baby"}
+        \item \textit{Gloss of baby:} \texttt{"a very young child, especially one newly or recently born"}
+        \item \textit{Gloss of toddler:} \texttt{"a young child, especially one who is beginning to walk"}
+    \end{itemize}
+    The definitions of \texttt{"infant"} and \texttt{"toddler"} share terms like \texttt{"young"} and \texttt{"child"}. The overlap is positive ($s_{\text{def}}(\text{"infant"}, \text{"toddler"}) > 0$), allowing the search engine to retain and weight \texttt{"toddler"} dynamically. Furthermore, this gloss overlap bypasses POS constraints (e.g., matching the verb \texttt{"construct"} with the noun \texttt{"building"}).
+\end{enumerate}
+
+\subsection{Datasets and Experimental Setup}
+Retrieval experiments were evaluated on six standard TREC collections: \textbf{ap88-89} (Associated Press news), \textbf{doe} (Department of Energy technical reports), \textbf{fr88-89} (Federal Register government documents), \textbf{trec7} (Ad hoc data), \textbf{trec8} (Ad hoc data), and \textbf{wt2g} (Web collection). Software infrastructure utilized \textbf{WordNet 3.0}, the \textbf{Lemur Toolkit} for index search, \textbf{TrecWN library} for mapping TREC queries to WordNet, and the \textbf{Porter's Stemmer} for word stemming preprocessing.
+
+\subsection{Key Results and Limitations}
+\begin{itemize}
+    \item \textbf{Effectiveness of $QE_{\text{def}}$:} Utilizing definition overlap alone led to significant, consistent performance gains across all collections (e.g., \textbf{+16\% MAP} and \textbf{+27\% gMAP} on \texttt{trec7}).
+    \item \textbf{Failure of Binary Relations:} Hierarchical relations ($s_{\text{syn}}, s_{\text{hyper}}, \dots$) yielded negligible or negative improvements due to their binary nature and POS limitations.
+    \item \textbf{Computational Advantage:} WordNet definition similarity can be precomputed \textbf{offline} and stored in a dictionary. This is highly efficient compared to co-occurrence-based systems (like Mutual Information $QE_{\text{MIImp}}$) that require expensive, runtime online computation over retrieved documents.
+    \item \textbf{Additive Effect:} Combining lexical similarity ($QE_{\text{def}}$) with co-occurrence similarity ($QE_{\text{MIImp}}$) yielded the highest overall precision (e.g., \textbf{+48.6\% MAP} on \texttt{ap88-89}), demonstrating that handcrafted dictionaries and statistical corpus patterns capture complementary semantic connections.
+\end{itemize}
+
+\subsection{Comparison and Differences with LQE-Grep (Our Method)}
+Our proposed method, LQE-Grep (Lexical Query Expansion via Harness-Level Regex Synthesis), shares the core objective of bridging the vocabulary gap in search, but operates under a completely different paradigm:
+\begin{itemize}
+    \item \textbf{Search Engine & Representation:} Paper 1 expands queries using natural language synonym terms that are fed into an index-based search engine (e.g., BM25/Lucene). LQE-Grep translates queries into regular expressions containing alternation groups enclosed in strict word boundaries (e.g., \texttt{\textbackslash b(sedan|coupe|suv|truck)\textbackslash b}), which are executed directly on raw, unindexed files using standard local command line tools (like \texttt{ripgrep}).
+    \item \textbf{Resource Dependency:} Paper 1 requires static, handcrafted lexical dictionaries (WordNet) or precomputed corpus patterns (Lin's thesaurus). LQE-Grep uses a lightweight local LLM at query time, making the translation open-vocabulary, dynamic, and training-free.
+    \item \textbf{Context Footprint Control:} LQE-Grep utilizes LQE v2's two-tier frequency filtering (Global Document Frequency and Local turn-frequency) to prune common words and prevent context footprint explosion, which is not addressed by Paper 1.
+\end{itemize}
+
+---
+
+\section{Paper 2: Compositional Image-Text Matching and Retrieval by Grounding Entities}
+\label{sec:paper2}
+
+\subsection{Core Problem and Motivation}
+Standard Vision-Language Models (VLMs) like CLIP project entire images and captions into a shared embedding space. While effective for general classification, CLIP suffers from a \textbf{lack of compositional understanding}. It behaves like a \textit{bag-of-words} model, matching individual keywords globally without understanding the structural relationships between subjects, verbs, and objects. 
+
+For instance, the caption \texttt{"A man is holding a sign"} may align equally with an image of \texttt{"A man holding glasses"} because the global representation is dominated by the presence of a \texttt{"man"} and the action of \texttt{"holding"}. This is exacerbated by dataset priors where the model relies on common co-occurrences.
+
+Vongala et al. (2024) introduce \textbf{Grounding CLIP (GCLIP)}, a zero-shot, training-free framework that refines CLIP's global image embedding by identifying individual entities and subject-verb-object relations, locating their bounding boxes in the image using an open-vocabulary detector, and performing a weighted fusion of these localized region embeddings.
+
+\subsection{Methodology and Mathematical Formulations}
+The GCLIP framework operates in four stages:
+
+\subsubsection{Stage 1: Text Decomposition (LLM-guided)}
+GCLIP prompts \texttt{GPT-3.5-turbo} to parse the caption into object entities $O = \{o_1, \dots, o_n\}$, their attributes $A = \{a_1, \dots, a_n\}$, and connection triplets $R = \{(s_1, r_1, o_1), \dots\}$. The LLM then outputs clean descriptive phrases for each component (e.g., \texttt{"gray dog"}, \texttt{"sand"}, \texttt{"dog plays in sand"}).
+
+\subsubsection{Stage 2: Object Grounding (Localization)}
+The generated phrases are fed into \textbf{Grounding DINO} (an open-vocabulary object detector) along with the raw image. Grounding DINO outputs bounding box coordinates for each phrase.
+
+\subsubsection{Stage 3: Sub-image Generation}
+For each bounding box, a sub-image is generated. Crucially, GCLIP does not crop the region (which alters scale and aspect ratios). Instead, it creates a \textbf{masked sub-image} by blacking out all pixels outside the bounding box coordinates, preserving the original dimensions. For relation connections, the sub-image is defined by the minimal enclosing bounding box that covers both the subject and object regions, with everything else blacked out.
+
+\subsubsection{Stage 4: Embedding Fusion}
+Let $\bm{e}_I$ be the baseline global CLIP image embedding. Let $\bm{e}_k$ be the CLIP visual embedding of the masked sub-image for entity/relation $k$, and $\bm{t}_k$ be the CLIP text embedding of the corresponding phrase. The alignment weight $s_k$ is the cosine similarity:
+\begin{equation}
+s_k = \text{sim}(\bm{e}_k, \bm{t}_k) = \frac{\bm{e}_k^T \bm{t}_k}{\|\bm{e}_k\| \|\bm{t}_k\|}
+\end{equation}
+For a standard subject-verb-object triplet (where $K=3$), the adjusted compositional image embedding $\bm{I}_c$ is:
+\begin{equation}
+\bm{I}_c = \bm{e}_I + \sum_{k=1}^K s_k \bm{e}_k = \bm{e}_I + s_{\text{subj}}\bm{e}_{\text{subj}} + s_{\text{obj}}\bm{e}_{\text{obj}} + s_{\text{rel}}\bm{e}_{\text{rel}}
+\end{equation}
+The final match score between the image and the full text caption $\bm{T}$ is:
+\begin{equation}
+\text{Score} = \text{sim}(\bm{I}_c, \bm{T})
+\end{equation}
+If an entity is absent or misaligned in the image, its local similarity weight $s_k$ will be very low or negative, preventing it from incorrectly inflating the overall score.
+
+\subsection{Concrete Examples}
+Consider the caption \texttt{"A man is holding a sign"}.
+\begin{itemize}
+    \item \textbf{Standard CLIP:} Evaluates Image A (man holding stop sign) and Image B (man holding glasses). Since both contain \texttt{"man"} and \texttt{"holding"}, CLIP scores them similarly and may rank Image B higher due to visual priors.
+    \item \textbf{GCLIP:} The LLM decomposes the caption to extract \texttt{"man"} (subject) and \texttt{"sign"} (object).
+    \begin{itemize}
+        \item In Image A, both are successfully localized. The masked stop-sign region matches the text phrase \texttt{"sign"} yielding a high weight $s_{\text{obj}} \approx 0.9$, boosting the final embedding $\bm{I}_c$.
+        \item In Image B, the detector fails to find a \texttt{"sign"} or returns a weak box (glasses). The similarity $s_{\text{obj}}$ is near $0$, preventing the embedding from receiving a boost. GCLIP successfully ranks Image A higher.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Datasets and Experimental Setup}
+GCLIP was benchmarked on: \textbf{Compositional Visual Genome (ComVG)} (524 images, 5,400 triplets), \textbf{SVO Probes} (13,767 samples evaluated), \textbf{Flickr30K} (1,000 image test set), and \textbf{MS-COCO} (1,000 image test set). Visual backbones included CLIP ViT-B/32 and ViT-L/14.
+
+\subsection{Key Results and Limitations}
+On ComVG, GCLIP achieved \textbf{87.85\%} accuracy (vs. CLIP's 86.38\% and ComCLIP's 86.93\%.) On SVO Probes, it hit \textbf{86.29\%} (vs. CLIP's 84.79\%). On Flick30K, GCLIP's Recall@1 was \textbf{66.5\%}, a \textbf{12\% absolute improvement} over CLIP (54.4\%.) 
+
+Critical limitations include: (1) \textbf{High Latency:} Calling GPT-3.5 and Grounding DINO sequentially introduces massive latency, making it unsuitable for real-time web search; (2) \textbf{Detector Dependence:} The system is vulnerable to object detection failures; (3) \textbf{Relation Bottleneck:} Disambiguating complex spatial interactions (verbs) remains difficult.
+
+\subsection{Comparison and Differences with LQE-Grep (Our Method)}
+While GCLIP and LQE-Grep both utilize LLM-guided text decomposition to identify entities and relations, they apply this concept to different modalities and technical pipelines:
+\begin{itemize}
+    \item \textbf{Search Modality:} GCLIP is a multimodal visual-linguistic retrieval framework designed for matching images with captions. LQE-Grep is a text-only codebase and dialogue retrieval method.
+    \item \textbf{Grounding Layer:} GCLIP relies on an open-vocabulary object detector (Grounding DINO) to isolate bounding boxes in images. LQE-Grep uses a local regex synthesis block to match text strings inside codebases/logs.
+    \item \textbf{Inference Complexity:} GCLIP requires high-compute visual networks (DINO + CLIP) and image masking operations. LQE-Grep is highly lightweight and uses simple local grep utilities, rendering it appropriate for offline developer environments.
+\end{itemize}
+
+---
+
+\section{Paper 3: Exploring the Best Practices of Query Expansion with Large Language Models}
+\label{sec:paper3}
+
+\subsection{Core Problem and Motivation}
+Recent LLM-based query expansion methods (like HyDE and query2doc) prompt an LLM to generate a pseudo-document (hypothetical answer) and use it to expand the query. However, they suffer from three key limitations:
+\begin{enumerate}
+    \item \textbf{Lexical Dilution:} In sparse retrieval (BM25), a long generated passage containing many terms can drown out the original query keywords. Fixed query repetition (e.g., repeating the query 5 times) fails to adapt to variable reference lengths.
+    \item \textbf{Neural Input Limits (Truncation):} Dense retrievers have a strict input limit of 512 tokens. Concatenating multiple long references truncates the text and incurs quadratic attention computation overhead ($O(N^2)$).
+    \item \textbf{Vector Calibration:} Existing frameworks do not refine query vectors using negative feedback during retrieval.
+\end{enumerate}
+
+The authors introduce \textbf{MuGI} (Multi-Text Generation Integration), a training-free framework that addresses these issues using adaptive reweighting, contextualized pooling, and neural vector calibration.
+
+\subsection{Methodology and Mathematical Formulations}
+MuGI operates through three core integration steps:
+
+\subsubsection{A. Zero-Shot Passage Generation}
+Given query $q$, the LLM is prompted in a zero-shot manner to generate $n=5$ independent pseudo-references $\mathcal{R} = \{r_1, \dots, r_n\}$.
+
+\subsubsection{B. MuGI for Sparse Retrieval (BM25)}
+To balance the query terms against long generated references, MuGI dynamically computes a query repetition factor $\lambda$:
+\begin{equation}
+\lambda = \left\lfloor \frac{\sum_{i=1}^n \text{len}(r_i)}{\text{len}(q) \cdot \beta} \right\rfloor
+\end{equation}
+where $\text{len}(\cdot)$ denotes the token length, and $\beta$ is a tuning factor (empirically set to $4$). The expanded sparse query is:
+\begin{equation}
+q_{\text{sparse}} = \text{concat}(q \times \lambda, r_1, r_2, \dots, r_n)
+\end{equation}
+
+\subsubsection{C. MuGI for Dense Retrieval (Contextualized Pooling)}
+To avoid the 512-token limit and quadratic attention cost of text concatenation, MuGI encodes the query with each reference independently and averages the resulting vectors:
+\begin{equation}
+e_{\text{context-pool}} = \frac{\sum_{i=1}^n f(\text{concat}(q, r_i))}{n}
+\end{equation}
+where $f(\cdot)$ is the dense encoder. This reduces computation complexity to linear $O(n)$ and prevents truncation.
+
+\subsubsection{D. Neural Relevance Feedback (Vector Calibration)}
+To further refine the embedding, MuGI applies a modified Rocchio feedback algorithm:
+\begin{equation}
+e'_q = \frac{1}{W} \left( \sum_{r \in \mathcal{R}_+} f(\text{concat}(q, r)) - \alpha \sum_{n' \in \mathcal{N}} f(n') \right)
+\end{equation}
+where:
+\begin{itemize}
+    \item $\mathcal{R}_+$ (Positive Feedback) is the set of generated references plus the \textit{K-reciprocal documents} (documents appearing in the top-$K$ of both initial BM25 and dense retrievals).
+    \item $\mathcal{N}$ (Negative Feedback) is the set of bottom $n$ documents returned by BM25.
+    \item $\alpha$ is the negative weight (set to $0.2$), and $W = |\mathcal{R}_+| + |\mathcal{N}|$.
+\end{itemize}
+
+\subsection{Concrete Examples}
+\begin{enumerate}
+    \item \textbf{BM25 Adaptive Reweight:}
+    For query $q = \text{\texttt{"how to prevent rust on tools"}}$ (6 words) and references totaling 50 words:
+    $$\lambda = \lfloor 50 / (6 \cdot 4) \rfloor = \lfloor 50 / 24 \rfloor = 2$$
+    The query is repeated twice, preventing the 50-word generated text from drowning out the core keywords.
+    \item \textbf{Contextualized Pooling vs. Concatenation:}
+    For a query with 5 generated explanations of 120 tokens each (total 600 tokens):
+    \begin{itemize}
+        \item \textit{Concatenation:} Truncates at 512 tokens, discarding explanations 4 and 5.
+        \item \textit{Contextualized Pooling:} Feeds 5 separate 124-token inputs to the encoder and averages the output vectors. No information is truncated.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Datasets and Experimental Setup}
+Evaluations were carried out on in-domain datasets \textbf{TREC DL19} and \textbf{TREC DL20}, and out-of-domain benchmarks from \textbf{BEIR}: \textbf{TREC-COVID}, \textbf{NFCorpus}, \textbf{Touch\'{e}-2020}, \textbf{DBPedia-Entity}, \textbf{SciFact}, \textbf{Signal-1M}, \textbf{TREC-News}, and \textbf{Robust04}. Dense retrievers evaluated include \texttt{all-MiniLM-L6-v2} and \texttt{E5-Mistral-instruct}.
+
+\subsection{Key Results and Limitations}
+MuGI achieves optimal gains at $n=5$ references. Dynamic reweighting consistently outperforms fixed repetition, and Rocchio calibration yields massive improvements in zero-shot settings. Strikingly, a tiny \textbf{23M parameter} retriever equipped with MuGI outperformed the \textbf{7B parameter} E5-Mistral baseline (without QE). A key limitation is the API cost and inference delay associated with generating 5 separate responses per query.
+
+\subsection{Comparison and Differences with LQE-Grep (Our Method)}
+MuGI and LQE-Grep both address vocabulary gaps and truncation issues in query expansion, but adopt distinct architectures:
+\begin{itemize}
+    \item \textbf{Embedding & Index Dependency:} MuGI relies heavily on dense embeddings, vector database pre-indexing, and positive/negative vector calibrations. LQE-Grep is a completely zero-index framework that runs character-level regex sweeps natively over raw files, requiring no embeddings or indices.
+    \item \textbf{Integration Type:} MuGI uses Contextualized Feature Pooling to bypass dense encoder truncation limits. LQE-Grep bypasses the truncation bottleneck by replacing neural retrieval entirely with regex scanning, enabling scanning of arbitrarily long files in milliseconds.
+    \item \textbf{Term Balancing:} MuGI uses dynamic query repetition ($\lambda$) to weight terms in a BM25 index. LQE-Grep translates query categories into regex alternations wrapped in word boundaries to lock the match specifically to entity names.
+\end{itemize}
+
+---
+
+\section{Paper 4: Query2doc: Query Expansion with Large Language Models}
+\label{sec:paper4}
+
+\subsection{Core Problem and Motivation}
+User queries in information retrieval are typically short and ambiguous, leading to a vocabulary gap. Classic pseudo-relevance feedback (like RM3) expands queries using keywords from top-retrieved documents, which fails (causing query drift) if the initial search results are inaccurate. Conversely, document expansion (like doc2query) requires predicting queries for every document at indexing time, which is computationally expensive for large document collections.
+
+Wang et al. (2023) propose \textbf{query2doc}, a training-free query expansion technique. It prompts an LLM with few-shot examples to generate a pseudo-document $d'$ answering the search query, and then appends it to the query to guide sparse and dense retrievers.
+
+\subsection{Methodology and Mathematical Formulations}
+\subsubsection{Few-Shot Prompting}
+The LLM is prompted using $k=4$ randomly selected query-passage pairs from the MS-MARCO training set to generate a pseudo-document $d'$:
+\begin{lstlisting}[language=bash]
+Write a passage that answers the given query:
+Query: [Example Query 1]
+Passage: [Example Passage 1]
+...
+Query: [User Query q]
+Passage:
+\end{lstlisting}
+
+\subsubsection{Query Concatenation}
+To prevent the long pseudo-document from dominating the search score, separate concatenation approaches are utilized:
+\begin{itemize}
+    \item \textbf{Sparse Retrieval (BM25):} The query is repeated $n=5$ times before concatenating:
+    \begin{equation}
+    q^+ = \text{concat}(\{q\} \times n, d')
+    \end{equation}
+    \item \textbf{Dense Retrieval:} The query and pseudo-document are separated by a \texttt{[SEP]} token:
+    \begin{equation}
+    q^+ = \text{concat}(q, \text{[SEP]}, d')
+    \end{equation}
+\end{itemize}
+
+\subsubsection{Dense Retriever Training Objectives}
+When training a dense retriever using expanded queries, two objectives are analyzed:
+\begin{enumerate}
+    \item \textbf{Contrastive Loss (DPR style):} Using BM25 hard negatives:
+    \begin{equation}
+    L_{\text{cont}} = -\log \frac{e^{\mathbf{h}_q \cdot \mathbf{h}_d}}{e^{\mathbf{h}_q \cdot \mathbf{h}_d} + \sum_{d_i \in \mathbb{N}} e^{\mathbf{h}_q \cdot \mathbf{h}_{d_i}}}
+    \end{equation}
+    where $\mathbf{h}_q$ and $\mathbf{h}_d$ are embeddings of the expanded query $q^+$ and document $d$, and $\mathbb{N}$ is the set of hard negatives.
+    \item \textbf{Knowledge Distillation:} Distilling cross-encoder scores:
+    \begin{equation}
+    \min \text{D}_{\text{KL}}(p_{\text{ce}}, p_{\text{stu}}) + \alpha L_{\text{cont}}
+    \end{equation}
+    where $p_{\text{ce}}$ and $p_{\text{stu}}$ are the cross-encoder teacher and dense student probabilities respectively, and $\alpha = 0.2$.
+\end{enumerate}
+
+\subsection{Concrete Examples}
+\begin{itemize}
+    \item \textbf{Bridging Lexical Gap:} For the query \texttt{"who killed nicholas ii of russia"}, the LLM generates a passage mentioning \texttt{"last Tsar"}, \texttt{"Bolshevik"}, \texttt{"Vladimir Lenin"}, and \texttt{"July 17th, 1918"}. These terms overlap directly with the groundtruth document, allowing BM25 to successfully retrieve it.
+    \item \textbf{Tolerance to Factual Errors:} For the query \texttt{"who sings monk theme song"}, the LLM generates \texttt{"It's a Jungle Out There"} by \texttt{"Randy Newman"}, but incorrectly claims it was used since the series premiered in 2002 (it was introduced in season two, 2003). Despite this error, the correct keyword terms \texttt{"It's a Jungle Out There"} and \texttt{"Randy Newman"} are present, ensuring a successful retrieval. Retrieval is highly robust to local factual errors.
+\end{itemize}
+
+\subsection{Datasets and Experimental Setup}
+Experiments evaluated in-domain on \textbf{MS-MARCO Passage Ranking}, \textbf{TREC DL 2019}, and \textbf{TREC DL 2020}, and zero-shot out-of-domain on BEIR: \textbf{DBpedia}, \textbf{NFCorpus}, \textbf{SciFact}, \textbf{Trec-Covid}, and \textbf{Touche2020}. Prompting utilized GPT-3 (text-davinci-003) and GPT-4.
+
+\subsection{Key Results and Limitations}
+BM25 + query2doc improved BM25 MRR@10 from 18.4 to \textbf{21.4} (+3.0\%) on MS-MARCO, and nDCG@10 by \textbf{15.0\%} and \textbf{15.2\%} on TREC DL 19 and 20. Dense retrievers like E5 and SimLM also achieved consistent improvements. Larger LLM sizes yield higher retrieval gains. Key limitations are LLM API latency (>2000ms) and slower index scanning due to expanded query length.
+
+\subsection{Comparison and Differences with LQE-Grep (Our Method)}
+Query2doc and LQE-Grep both utilize LLMs to rewrite user search queries, but they have major architectural differences:
+\begin{itemize}
+    \item \textbf{Expansion Structure & Noise Control:} Query2doc generates an unstructured natural-language pseudo-document (paragraph). This introduces considerable hallucination and lexical noise. LQE-Grep uses the LLM strictly to extract core nouns and compile synonym groups, outputting a structured regex alternation set.
+    \item \textbf{Need for Indexing:} Query2doc is a heavy, index-bound system that requires pre-indexing the corpus using BM25 or vector search. LQE-Grep requires zero indexing, scanning raw text files on-demand.
+    \item \textbf{Token Overhead and Pruning:} LQE-Grep uses global document frequency filtering (for medical collections like NFCorpus) and local turn-frequency filtering (for chat logs) to prune synonyms and minimize context footprints. Query2doc does not perform any structural pruning, leading to context footprint inflation.
+\end{itemize}
+
+---
+
+\section{Paper 5: SEARCH-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning}
+\label{sec:paper5}
+
+\subsection{Core Problem and Motivation}
+Standard Large Language Models suffer from knowledge cutoffs and hallucinations. Traditional RAG systems or simple tool-use prompts do not optimize the LLM to search dynamically. The model fails to learn \textbf{when} to search, \textbf{what} queries to formulate, or \textbf{how} to verify retrieved information. 
+
+While Reinforcement Learning (RL) has successfully taught LLMs complex parametric reasoning (e.g., DeepSeek-R1), applying RL to search-augmented environments introduces a major bottleneck: \textbf{RL training instability}. Standard RL computes loss over the entire generated sequence. If retrieved passages (written by external sources) are appended in the context, the model computes parameter gradients on text it did not write, leading to training divergence and language degradation.
+
+SEARCH-R1 (COLM 2025) resolves this by training LLMs to dynamically search and reason using a simple outcome-based reward, utilizing \textbf{retrieved token loss masking} to ensure training stability.
+
+\subsection{Methodology and Mathematical Formulations}
+\subsubsection{Interleaved Rollout Mechanism}
+The rollout sequence utilizes XML tags to separate LLM thoughts, search actions, environment results, and final answers:
+\begin{lstlisting}[language=html]
+<think> reasoning </think>
+<search> search_query </search>
+<information> retrieved_results </information>
+<think> further_reasoning </think>
+<answer> final_answer </answer>
+\end{lstlisting}
+Whenever the LLM generates \texttt{</search>}, token generation pauses, the environment executes the query, wraps the top-k results in \texttt{<information>}, and appends them to the context, before resuming the LLM.
+
+\subsubsection{Reinforcement Learning Objective}
+We formulate the RL objective by conditioning the policy probability on both the prompt $x$ and the search engine environment $\mathcal{R}$:
+\begin{equation}
+\max_{\pi_\theta} \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi_\theta(\cdot|x; \mathcal{R})} \left[ r_\phi(x, y) \right] - \beta \mathbb{D}_{\text{KL}} \left[ \pi_\theta(y | x; \mathcal{R}) \parallel \pi_{\text{ref}}(y | x; \mathcal{R}) \right]
+\end{equation}
+where $\pi_\theta$ is the active policy, $\pi_{\text{ref}}$ is the frozen reference policy, and $\beta$ scales the KL divergence penalty.
+
+\subsubsection{Retrieved Token Loss Masking}
+To prevent gradient updates on retrieved passages, SEARCH-R1 applies a binary mask $I(y_t)$ to the token-level policy loss (PPO or GRPO) and KL divergence calculation:
+\begin{equation}
+I(y_t) = \begin{cases} 1 & \text{if token } y_t \text{ is generated by the LLM} \\ 0 & \text{if token } y_t \text{ is retrieved context} \end{cases}
+\end{equation}
+
+\subsubsection{Outcome-Based Reward}
+Instead of complex process rewards, the framework uses a rule-based binary reward checking the correctness of the final answer:
+\begin{equation}
+r_\phi(x, y) = \text{Exact Match}(a_{\text{pred}}, a_{\text{gold}})
+\end{equation}
+Through RL, this outcome signal forces the model to discover optimal search, verification, and formatting strategies.
+
+\subsection{Concrete Examples}
+For the question: \textit{"Curious is a women's fragrance by a singer born in what city and state?"} (Ground Truth: McComb, Mississippi):
+\begin{enumerate}
+    \item \textbf{LLM:} \texttt{<think> I need to find who created "Curious". </think> <search> Curious fragrance </search>}
+    \item \textbf{Environment:} Appends \texttt{<information> Curious is a women's fragrance by Britney Spears... </information>}
+    \item \textbf{LLM:} \texttt{<think> Spears created it. Now I need her birthplace. </think> <search> Britney Spears birthplace </search>}
+    \item \textbf{Environment:} Appends \texttt{<information> Britney Spears was born in McComb, Mississippi... </information>}
+    \item \textbf{LLM:} \texttt{<think> Birthplace is McComb, Mississippi. </think> <answer> McComb, Mississippi </answer>}
+\end{enumerate}
+During training, the model naturally develops self-verification (e.g., executing a third search query to verify if McComb is indeed in Mississippi) to guarantee correctness.
+
+\subsection{Datasets and Experimental Setup}
+The knowledge base was a \textbf{2018 Wikipedia Dump} indexed using the \textbf{E5} embedding retriever ($k=3$). Evaluated Qwen-2.5-3B/7B/14B models on General QA: \textbf{Natural Questions (NQ)}, \textbf{TriviaQA}, and \textbf{PopQA}, and Multi-Hop QA: \textbf{HotpotQA}, \textbf{2WikiMultiHopQA}, \textbf{MuSiQue}, and \textbf{Bamboogle}.
+
+\subsection{Key Results and Limitations}
+SEARCH-R1 achieved a \textbf{24\% performance boost} over RAG baselines. \textbf{Loss masking was critical:} omitting it led to accuracy collapsing from 0.431 to 0.343. PPO demonstrated higher training stability than GRPO. The optimal number of retrieved passages is $k=3$. A limitation is the multi-turn generation cost and the potential for reward exploitation.
+
+\subsection{Comparison and Differences with LQE-Grep (Our Method)}
+SEARCH-R1 and LQE-Grep optimize the search-augmented capabilities of coding and reasoning agents, but approach the task from different layers:
+\begin{itemize}
+    \item \textbf{Harness Middleware vs. Parameter Tuning:} SEARCH-R1 is a training-heavy framework that updates model parameters using Reinforcement Learning (PPO/GRPO) to teach LLMs to output search actions. LQE-Grep is a training-free (zero-shot) harness middleware solution that intercepts search queries transparently, requiring no specialized model reasoning formats or parameter updates.
+    \item \textbf{Search Layer Indexing:} SEARCH-R1 relies on a dense embedding retriever (E5) and a pre-indexed text database (Wikipedia). LQE-Grep operates directly on raw codebases and logs using standard grep utilities.
+    \item \textbf{Deployment Complexity:} SEARCH-R1 requires retrieved token loss masking, complex RL pipelines, and multiple model checkpoints. LQE-Grep operates strictly at inference time as a zero-index solution.
+\end{itemize}
+
+---
+
+\newpage
+\section{Paradigmatic Comparison: LQE-Grep vs. Literature Methods}
+\label{sec:comparison}
+
+To synthesize the relationship between our proposed method, \textbf{LQE-Grep}, and the established literature reviewed in this document, Table~\ref{tab:paradigmatic_comparison} provides a structured summary of their core similarities and technical differences.
+
+\begin{table}[htbp]
+\centering
+\caption{Similarities and Differences between LQE-Grep (Our Method) and Literature Methods}
+\label{tab:paradigmatic_comparison}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lp{6cm}p{8cm}}
+\toprule
+\textbf{Paper / Method} & \textbf{Similarities with LQE-Grep} & \textbf{Differences from LQE-Grep} \\
+\midrule
+\textbf{Paper 1: Axiomatic QE} & 
+\begin{itemize}
+    \item Aims to resolve the lexical-semantic vocabulary gap.
+    \item Scales the importance of expansion terms based on semantic similarity to query keywords.
+\end{itemize} & 
+\begin{itemize}
+    \item Relies on static handcrafted lexicons (WordNet) or parsed corpora (Lin's thesaurus).
+    \item Queries a pre-built inverted index (BM25).
+    \item LQE-Grep uses dynamic local LLMs for open-vocabulary translation and searches raw files via grep.
+\end{itemize} \\
+\midrule
+\textbf{Paper 2: GCLIP} & 
+\begin{itemize}
+    \item Employs LLM-based text decomposition (parsing queries into objects and connections).
+    \item Focuses search attention on specific key category entities to avoid noisy matches.
+\end{itemize} & 
+\begin{itemize}
+    \item Multimodal retrieval matching images with text.
+    \item Integrates Grounding DINO bounding boxes and CLIP visual embeddings.
+    \item LQE-Grep is a text-only method using regex alternation sets on raw source code/text logs.
+\end{itemize} \\
+\midrule
+\textbf{Paper 3: MuGI} & 
+\begin{itemize}
+    \item Utilizes LLMs to expand queries with synonyms and contexts.
+    \item Resolves term-dilution and candidate truncation bottlenecks.
+\end{itemize} & 
+\begin{itemize}
+    \item Focuses on dense neural models, Contextualized Pooling, and vector-space Rocchio calibration.
+    \item Uses dynamic query repetition factor $\lambda$ for BM25.
+    \item LQE-Grep performs zero-index regex scans directly on raw files, avoiding vector spaces.
+\end{itemize} \\
+\midrule
+\textbf{Paper 4: Query2doc} & 
+\begin{itemize}
+    \item Rewrites short queries into expanded representations using LLM generation.
+    \item Improves retrieval accuracy without needing model retraining.
+\end{itemize} & 
+\begin{itemize}
+    \item Generates unstructured natural language pseudo-documents, introducing hallucination noise.
+    \item Requires pre-indexed databases (BM25 or dense retriever indexes).
+    \item LQE-Grep restricts LLM output to category synonyms, formatting them as word-bounded regex alternations on raw files.
+\end{itemize} \\
+\midrule
+\textbf{Paper 5: SEARCH-R1} & 
+\begin{itemize}
+    \item Dynamically integrates LLMs with external search resources.
+    \item Mitigates model hallucinations and factual memory limits.
+\end{itemize} & 
+\begin{itemize}
+    \item Fine-tunes model parameters using Reinforcement Learning (PPO/GRPO) and outcome rewards.
+    \item Relies on E5 dense retriever and a pre-indexed corpus.
+    \item LQE-Grep is a training-free harness middleware that intercepts queries transparently.
+\end{itemize} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\newpage
+\section{Summary of All Databases and Datasets Used}
+\label{sec:datasets}
+
+Across the five papers, a wide range of standard evaluation databases and corpora were used, spanning lexical text search, conversational QA, multimodal vision-language matching, and domain-specific benchmarks. Table~\ref{tab:all_datasets} cataloges every dataset utilized in their experiments.
+
+\begin{table}[htbp]
+\centering
+\caption{Comprehensive Catalog of Datasets and Databases Used}
+\label{tab:all_datasets}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+\textbf{Dataset / Database} & \textbf{Type} & \textbf{Scale / Size} & \textbf{Used in} & \textbf{Description} \\
+\midrule
+\textbf{WordNet 3.0} & Lexical & 117K synsets, 155K words & Papers 1, 3, 4 & Handcrafted lexical database of semantic relationships. \\
+\textbf{Lin's Thesaurus} & Dependency & Millions of pairs & Paper 1 & Automated dependency-similarity word thesaurus. \\
+\textbf{ap88-89} & News & 165K docs, 491 MB, 150 queries & Paper 1 & Associated Press articles (1988-1989) for ad hoc search. \\
+\textbf{doe} & Technical & 226K docs, 184 MB, 35 queries & Paper 1 & Department of Energy technical reports. \\
+\textbf{fr88-89} & Government & 204K docs, 469 MB, 42 queries & Paper 1 & Federal Register documents (1988-1989). \\
+\textbf{trec7} & Ad hoc & 528K docs, 2.0 GB, 50 queries & Paper 1 & TREC-7 Ad hoc retrieval track. \\
+\textbf{trec8} & Ad hoc & 528K docs, 2.0 GB, 50 queries & Paper 1 & TREC-8 Ad hoc retrieval track. \\
+\textbf{wt2g} & Web & 247K docs, 2.0 GB, 50 queries & Paper 1 & Web page crawl collection for early web tracks. \\
+\textbf{ComVG} & Visual & 524 images, 5,400 SVO relations & Paper 2 & Compositional Visual Genome for subject-verb-object. \\
+\textbf{SVO Probes} & Visual & 13,767 samples & Paper 2 & Subject-Verb-Object conceptual caption variation test. \\
+\textbf{Flickr30K} & Visual & 31,783 images, 1,000 test set & Paper 2 & Standard image-text retrieval benchmark. \\
+\textbf{MS-COCO} & Visual & 120K images, 1,000 test set & Paper 2 & Large-scale vision-language evaluation suite. \\
+\textbf{MS-MARCO} & Web Search & 8.8M passages, 1M training queries & Papers 3, 4 & Microsoft Bing real search passage ranking dataset. \\
+\textbf{TREC DL 2019} & Deep Learning & 43 test queries, fine-grained labels & Papers 3, 4 & Evaluates deep neural and sparse retrievers. \\
+\textbf{TREC DL 2020} & Deep Learning & 54 test queries, fine-grained labels & Papers 3, 4 & Companion deep learning retrieval track. \\
+\textbf{TREC-COVID} & Medical & 50 queries, COVID-19 abstracts & Papers 3, 4 & Part of BEIR benchmark for pandemic retrieval. \\
+\textbf{NFCorpus} & Medical & 3,244 docs, 324 test queries & Papers 3, 4 & Layman queries mapped to medical research abstracts. \\
+\textbf{Touch\'{e}-2020} & Arguments & 4,824 docs, 50 queries & Papers 3, 4 & BEIR benchmark conversational argument search. \\
+\textbf{DBPedia-Entity} & Knowledge & 4.6M entities, 467 queries & Papers 3, 4 & Entity search over DBpedia structured graphs. \\
+\textbf{SciFact} & Scientific & 5,183 abstracts, 300 claims & Papers 3, 4 & Verifying scientific claims using abstracts. \\
+\textbf{Signal-1M} & Social Media & 1M tweets & Paper 3 & Twitter tweet search benchmark in BEIR. \\
+\textbf{TREC-News} & News & 594K news articles, 57 queries & Paper 3 & Background news linking search benchmark in BEIR. \\
+\textbf{Robust04} & News & 528K documents, 250 queries & Paper 3 & Highly difficult, long-standing news retrieval track. \\
+\textbf{Wikipedia 2018 Dump} & Knowledge & Millions of articles (2018 dump) & Paper 5 & Parametric and external knowledge base for QA retrieval. \\
+\textbf{Natural Questions (NQ)} & General QA & 307K training, 7,830 dev QA pairs & Paper 5 & Google search queries answering short factual questions. \\
+\textbf{TriviaQA} & General QA & 95K QA pairs & Paper 5 & Trivia question-answer database. \\
+\textbf{PopQA} & General QA & 14K QA pairs & Paper 5 & Factual QA on long-tail/less popular entities. \\
+\textbf{HotpotQA} & Multi-hop QA & 113K QA pairs & Paper 5 & Requires reasoning across multiple Wikipedia documents. \\
+\textbf{2WikiMultiHopQA} & Multi-hop QA & 192K QA pairs & Paper 5 & Multi-step reasoning with structured template questions. \\
+\textbf{MuSiQue} & Multi-hop QA & 25K QA pairs & Paper 5 & Complex 2-to-4 hop reasoning questions. \\
+\textbf{Bamboogle} & Multi-hop QA & 125 QA pairs & Paper 5 & Curated multi-hop questions not solvable via single search. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\end{document}

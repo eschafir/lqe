@@ -2,8 +2,8 @@
   "dataset": "gowitheflow/ARO-Visual-Attribution",
   "provider": "nim",
   "model": "meta/llama-3.2-11b-vision-instruct",
-  "num_samples": 100,
-  "accuracy": 0.73,
+  "num_samples": 50,
+  "accuracy": 0.74,
   "details": [
     {
       "id": 1,
@@ -34,9 +34,9 @@
       "option_a": "the metal door and the open floor",
       "option_b": "the open door and the metal floor",
       "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
+      "pred_label": "A",
+      "raw_output": "A.",
+      "correct": 0
     },
     {
       "id": 4,
@@ -46,7 +46,7 @@
       "option_b": "the long sleeved door and the open shirt",
       "correct_label": "A",
       "pred_label": "A",
-      "raw_output": "A",
+      "raw_output": "A.",
       "correct": 1
     },
     {
@@ -57,7 +57,7 @@
       "option_b": "the brown door and the open shirt",
       "correct_label": "A",
       "pred_label": "A",
-      "raw_output": "A",
+      "raw_output": "A.",
       "correct": 1
     },
     {
@@ -79,7 +79,7 @@
       "option_b": "the gray man and the crouched floor",
       "correct_label": "A",
       "pred_label": "A",
-      "raw_output": "A",
+      "raw_output": "A.",
       "correct": 1
     },
     {
@@ -90,11 +90,22 @@
       "option_b": "the metal man and the crouched floor",
       "correct_label": "A",
       "pred_label": "A",
-      "raw_output": "A",
+      "raw_output": "A.",
       "correct": 1
     },
     {
       "id": 9,
+      "true_caption": "the crouched man and the long sleeved shirt",
+      "false_caption": "the long sleeved man and the crouched shirt",
+      "option_a": "the long sleeved man and the crouched shirt",
+      "option_b": "the crouched man and the long sleeved shirt",
+      "correct_label": "B",
+      "pred_label": "B",
+      "raw_output": "B.",
+      "correct": 1
+    },
+    {
+      "id": 10,
       "true_caption": "the crouched man and the brown shirt",
       "false_caption": "the brown man and the crouched shirt",
       "option_a": "the crouched man and the brown shirt",
@@ -105,7 +116,7 @@
       "correct": 1
     },
     {
-      "id": 10,
+      "id": 11,
       "true_caption": "the crouched man and the striped shirt",
       "false_caption": "the striped man and the crouched shirt",
       "option_a": "the crouched man and the striped shirt",
@@ -116,7 +127,7 @@
       "correct": 1
     },
     {
-      "id": 11,
+      "id": 12,
       "true_caption": "the gray floor and the long sleeved shirt",
       "false_caption": "the long sleeved floor and the gray shirt",
       "option_a": "the gray floor and the long sleeved shirt",
@@ -127,7 +138,7 @@
       "correct": 1
     },
     {
-      "id": 12,
+      "id": 13,
       "true_caption": "the gray floor and the brown shirt",
       "false_caption": "the brown floor and the gray shirt",
       "option_a": "the gray floor and the brown shirt",
@@ -138,18 +149,18 @@
       "correct": 1
     },
     {
-      "id": 13,
+      "id": 14,
       "true_caption": "the gray floor and the striped shirt",
       "false_caption": "the striped floor and the gray shirt",
       "option_a": "the gray floor and the striped shirt",
       "option_b": "the striped floor and the gray shirt",
       "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 0
     },
     {
-      "id": 14,
+      "id": 15,
       "true_caption": "the metal floor and the long sleeved shirt",
       "false_caption": "the long sleeved floor and the metal shirt",
       "option_a": "the metal floor and the long sleeved shirt",
@@ -160,7 +171,7 @@
       "correct": 1
     },
     {
-      "id": 15,
+      "id": 16,
       "true_caption": "the metal floor and the brown shirt",
       "false_caption": "the brown floor and the metal shirt",
       "option_a": "the metal floor and the brown shirt",
@@ -171,18 +182,18 @@
       "correct": 1
     },
     {
-      "id": 16,
+      "id": 17,
       "true_caption": "the metal floor and the striped shirt",
       "false_caption": "the striped floor and the metal shirt",
       "option_a": "the striped floor and the metal shirt",
       "option_b": "the metal floor and the striped shirt",
       "correct_label": "B",
       "pred_label": "B",
-      "raw_output": "B",
+      "raw_output": "B.",
       "correct": 1
     },
     {
-      "id": 17,
+      "id": 18,
       "true_caption": "the unpeeled banana and the black table",
       "false_caption": "the black banana and the unpeeled table",
       "option_a": "the unpeeled banana and the black table",
@@ -193,18 +204,18 @@
       "correct": 0
     },
     {
-      "id": 18,
+      "id": 19,
       "true_caption": "the unpeeled banana and the light colored plate",
       "false_caption": "the light colored banana and the unpeeled plate",
       "option_a": "the light colored banana and the unpeeled plate",
       "option_b": "the unpeeled banana and the light colored plate",
       "correct_label": "B",
       "pred_label": "B",
-      "raw_output": "B",
+      "raw_output": "B.",
       "correct": 1
     },
     {
-      "id": 19,
+      "id": 20,
       "true_caption": "the unpeeled banana and the square plate",
       "false_caption": "the square banana and the unpeeled plate",
       "option_a": "the square banana and the unpeeled plate",
@@ -215,7 +226,7 @@
       "correct": 1
     },
     {
-      "id": 20,
+      "id": 21,
       "true_caption": "the unpeeled banana and the white plate",
       "false_caption": "the white banana and the unpeeled plate",
       "option_a": "the unpeeled banana and the white plate",
@@ -226,7 +237,7 @@
       "correct": 0
     },
     {
-      "id": 21,
+      "id": 22,
       "true_caption": "the black table and the unpeeled banana",
       "false_caption": "the unpeeled table and the black banana",
       "option_a": "the black table and the unpeeled banana",
@@ -237,7 +248,7 @@
       "correct": 1
     },
     {
-      "id": 22,
+      "id": 23,
       "true_caption": "the black table and the attached banana",
       "false_caption": "the attached table and the black banana",
       "option_a": "the attached table and the black banana",
@@ -248,7 +259,7 @@
       "correct": 0
     },
     {
-      "id": 23,
+      "id": 24,
       "true_caption": "the black table and the light colored plate",
       "false_caption": "the light colored table and the black plate",
       "option_a": "the light colored table and the black plate",
@@ -259,18 +270,18 @@
       "correct": 1
     },
     {
-      "id": 24,
+      "id": 25,
       "true_caption": "the black table and the square plate",
       "false_caption": "the square table and the black plate",
       "option_a": "the square table and the black plate",
       "option_b": "the black table and the square plate",
       "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 1
     },
     {
-      "id": 25,
+      "id": 26,
       "true_caption": "the black table and the white plate",
       "false_caption": "the white table and the black plate",
       "option_a": "the black table and the white plate",
@@ -281,29 +292,29 @@
       "correct": 1
     },
     {
-      "id": 26,
+      "id": 27,
       "true_caption": "the unpeeled banana and the light colored plate",
       "false_caption": "the light colored banana and the unpeeled plate",
       "option_a": "the unpeeled banana and the light colored plate",
       "option_b": "the light colored banana and the unpeeled plate",
       "correct_label": "A",
       "pred_label": "B",
-      "raw_output": "B.",
+      "raw_output": "B",
       "correct": 0
     },
     {
-      "id": 27,
+      "id": 28,
       "true_caption": "the unpeeled banana and the square plate",
       "false_caption": "the square banana and the unpeeled plate",
       "option_a": "the square banana and the unpeeled plate",
       "option_b": "the unpeeled banana and the square plate",
       "correct_label": "B",
       "pred_label": "B",
-      "raw_output": "B",
+      "raw_output": "B.",
       "correct": 1
     },
     {
-      "id": 28,
+      "id": 29,
       "true_caption": "the unpeeled banana and the white plate",
       "false_caption": "the white banana and the unpeeled plate",
       "option_a": "the unpeeled banana and the white plate",
@@ -314,7 +325,7 @@
       "correct": 0
     },
     {
-      "id": 29,
+      "id": 30,
       "true_caption": "the attached banana and the light colored plate",
       "false_caption": "the light colored banana and the attached plate",
       "option_a": "the attached banana and the light colored plate",
@@ -325,7 +336,7 @@
       "correct": 1
     },
     {
-      "id": 30,
+      "id": 31,
       "true_caption": "the attached banana and the square plate",
       "false_caption": "the square banana and the attached plate",
       "option_a": "the square banana and the attached plate",
@@ -336,7 +347,7 @@
       "correct": 1
     },
     {
-      "id": 31,
+      "id": 32,
       "true_caption": "the attached banana and the white plate",
       "false_caption": "the white banana and the attached plate",
       "option_a": "the attached banana and the white plate",
@@ -347,18 +358,18 @@
       "correct": 1
     },
     {
-      "id": 32,
+      "id": 33,
       "true_caption": "the gray street and the empty boat",
       "false_caption": "the empty street and the gray boat",
       "option_a": "the empty street and the gray boat",
       "option_b": "the gray street and the empty boat",
       "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 1
     },
     {
-      "id": 33,
+      "id": 34,
       "true_caption": "the gray street and the orange wall",
       "false_caption": "the orange street and the gray wall",
       "option_a": "the orange street and the gray wall",
@@ -369,7 +380,7 @@
       "correct": 1
     },
     {
-      "id": 34,
+      "id": 35,
       "true_caption": "the gray street and the green water",
       "false_caption": "the green street and the gray water",
       "option_a": "the green street and the gray water",
@@ -380,7 +391,7 @@
       "correct": 1
     },
     {
-      "id": 35,
+      "id": 36,
       "true_caption": "the empty boat and the orange wall",
       "false_caption": "the orange boat and the empty wall",
       "option_a": "the empty boat and the orange wall",
@@ -391,18 +402,18 @@
       "correct": 0
     },
     {
-      "id": 36,
+      "id": 37,
       "true_caption": "the empty boat and the green water",
       "false_caption": "the green boat and the empty water",
       "option_a": "the green boat and the empty water",
       "option_b": "the empty boat and the green water",
       "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 1
     },
     {
-      "id": 37,
+      "id": 38,
       "true_caption": "the orange wall and the green water",
       "false_caption": "the green wall and the orange water",
       "option_a": "the orange wall and the green water",
@@ -413,7 +424,7 @@
       "correct": 0
     },
     {
-      "id": 38,
+      "id": 39,
       "true_caption": "the brown bread and the square plate",
       "false_caption": "the square bread and the brown plate",
       "option_a": "the square bread and the brown plate",
@@ -424,7 +435,7 @@
       "correct": 1
     },
     {
-      "id": 39,
+      "id": 40,
       "true_caption": "the brown bread and the white plate",
       "false_caption": "the white bread and the brown plate",
       "option_a": "the brown bread and the white plate",
@@ -435,18 +446,18 @@
       "correct": 0
     },
     {
-      "id": 40,
+      "id": 41,
       "true_caption": "the burnt bread and the square plate",
       "false_caption": "the square bread and the burnt plate",
       "option_a": "the square bread and the burnt plate",
       "option_b": "the burnt bread and the square plate",
       "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
+      "pred_label": "A",
+      "raw_output": "A",
+      "correct": 0
     },
     {
-      "id": 41,
+      "id": 42,
       "true_caption": "the burnt bread and the white plate",
       "false_caption": "the white bread and the burnt plate",
       "option_a": "the white bread and the burnt plate",
@@ -457,7 +468,7 @@
       "correct": 1
     },
     {
-      "id": 42,
+      "id": 43,
       "true_caption": "the brown bread and the little sandwiches",
       "false_caption": "the little bread and the brown sandwiches",
       "option_a": "the brown bread and the little sandwiches",
@@ -468,7 +479,7 @@
       "correct": 1
     },
     {
-      "id": 43,
+      "id": 44,
       "true_caption": "the brown bread and the small sandwiches",
       "false_caption": "the small bread and the brown sandwiches",
       "option_a": "the brown bread and the small sandwiches",
@@ -479,18 +490,18 @@
       "correct": 1
     },
     {
-      "id": 44,
+      "id": 45,
       "true_caption": "the burnt bread and the little sandwiches",
       "false_caption": "the little bread and the burnt sandwiches",
       "option_a": "the burnt bread and the little sandwiches",
       "option_b": "the little bread and the burnt sandwiches",
       "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 0
     },
     {
-      "id": 45,
+      "id": 46,
       "true_caption": "the burnt bread and the small sandwiches",
       "false_caption": "the small bread and the burnt sandwiches",
       "option_a": "the burnt bread and the small sandwiches",
@@ -501,18 +512,18 @@
       "correct": 0
     },
     {
-      "id": 46,
+      "id": 47,
       "true_caption": "the square plate and the little sandwiches",
       "false_caption": "the little plate and the square sandwiches",
       "option_a": "the little plate and the square sandwiches",
       "option_b": "the square plate and the little sandwiches",
       "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
+      "pred_label": "B",
+      "raw_output": "B",
+      "correct": 1
     },
     {
-      "id": 47,
+      "id": 48,
       "true_caption": "the square plate and the small sandwiches",
       "false_caption": "the small plate and the square sandwiches",
       "option_a": "the square plate and the small sandwiches",
@@ -523,7 +534,7 @@
       "correct": 1
     },
     {
-      "id": 48,
+      "id": 49,
       "true_caption": "the white plate and the little sandwiches",
       "false_caption": "the little plate and the white sandwiches",
       "option_a": "the white plate and the little sandwiches",
@@ -534,572 +545,11 @@
       "correct": 1
     },
     {
-      "id": 49,
+      "id": 50,
       "true_caption": "the white plate and the small sandwiches",
       "false_caption": "the small plate and the white sandwiches",
       "option_a": "the white plate and the small sandwiches",
       "option_b": "the small plate and the white sandwiches",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 50,
-      "true_caption": "the wood wall and the brown horse",
-      "false_caption": "the brown wall and the wood horse",
-      "option_a": "the brown wall and the wood horse",
-      "option_b": "the wood wall and the brown horse",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 51,
-      "true_caption": "the paved street and the green dress",
-      "false_caption": "the green street and the paved dress",
-      "option_a": "the green street and the paved dress",
-      "option_b": "the paved street and the green dress",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 52,
-      "true_caption": "the paved street and the large umbrella",
-      "false_caption": "the large street and the paved umbrella",
-      "option_a": "the large street and the paved umbrella",
-      "option_b": "the paved street and the large umbrella",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 53,
-      "true_caption": "the paved street and the white umbrella",
-      "false_caption": "the white street and the paved umbrella",
-      "option_a": "the white street and the paved umbrella",
-      "option_b": "the paved street and the white umbrella",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 54,
-      "true_caption": "the green dress and the large umbrella",
-      "false_caption": "the large dress and the green umbrella",
-      "option_a": "the green dress and the large umbrella",
-      "option_b": "the large dress and the green umbrella",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 55,
-      "true_caption": "the green dress and the white umbrella",
-      "false_caption": "the white dress and the green umbrella",
-      "option_a": "the white dress and the green umbrella",
-      "option_b": "the green dress and the white umbrella",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
-    },
-    {
-      "id": 56,
-      "true_caption": "the brown crust and the white cheese",
-      "false_caption": "the white crust and the brown cheese",
-      "option_a": "the white crust and the brown cheese",
-      "option_b": "the brown crust and the white cheese",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 57,
-      "true_caption": "the black racket and the bright ground",
-      "false_caption": "the bright racket and the black ground",
-      "option_a": "the black racket and the bright ground",
-      "option_b": "the bright racket and the black ground",
-      "correct_label": "A",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 0
-    },
-    {
-      "id": 58,
-      "true_caption": "the sitting man and the brown building",
-      "false_caption": "the brown man and the sitting building",
-      "option_a": "the brown man and the sitting building",
-      "option_b": "the sitting man and the brown building",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 59,
-      "true_caption": "the sitting man and the gray sky",
-      "false_caption": "the gray man and the sitting sky",
-      "option_a": "the sitting man and the gray sky",
-      "option_b": "the gray man and the sitting sky",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 60,
-      "true_caption": "the brown building and the gray sky",
-      "false_caption": "the gray building and the brown sky",
-      "option_a": "the brown building and the gray sky",
-      "option_b": "the gray building and the brown sky",
-      "correct_label": "A",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 0
-    },
-    {
-      "id": 61,
-      "true_caption": "the brown cat and the green jacket",
-      "false_caption": "the green cat and the brown jacket",
-      "option_a": "the brown cat and the green jacket",
-      "option_b": "the green cat and the brown jacket",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "Option A.",
-      "correct": 1
-    },
-    {
-      "id": 62,
-      "true_caption": "the furry cat and the green jacket",
-      "false_caption": "the green cat and the furry jacket",
-      "option_a": "the furry cat and the green jacket",
-      "option_b": "the green cat and the furry jacket",
-      "correct_label": "A",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 0
-    },
-    {
-      "id": 63,
-      "true_caption": "the white truck and the small tree",
-      "false_caption": "the small truck and the white tree",
-      "option_a": "the small truck and the white tree",
-      "option_b": "the white truck and the small tree",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 64,
-      "true_caption": "the white truck and the red building",
-      "false_caption": "the red truck and the white building",
-      "option_a": "the red truck and the white building",
-      "option_b": "the white truck and the red building",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 65,
-      "true_caption": "the white truck and the brick building",
-      "false_caption": "the brick truck and the white building",
-      "option_a": "the brick truck and the white building",
-      "option_b": "the white truck and the brick building",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 66,
-      "true_caption": "the small tree and the red building",
-      "false_caption": "the red tree and the small building",
-      "option_a": "the small tree and the red building",
-      "option_b": "the red tree and the small building",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 67,
-      "true_caption": "the small tree and the brick building",
-      "false_caption": "the brick tree and the small building",
-      "option_a": "the brick tree and the small building",
-      "option_b": "the small tree and the brick building",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
-    },
-    {
-      "id": 68,
-      "true_caption": "the young girl and the pink shirt",
-      "false_caption": "the pink girl and the young shirt",
-      "option_a": "the young girl and the pink shirt",
-      "option_b": "the pink girl and the young shirt",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 69,
-      "true_caption": "the happy girl and the pink shirt",
-      "false_caption": "the pink girl and the happy shirt",
-      "option_a": "the happy girl and the pink shirt",
-      "option_b": "the pink girl and the happy shirt",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "Option A.",
-      "correct": 1
-    },
-    {
-      "id": 70,
-      "true_caption": "the smiling girl and the pink shirt",
-      "false_caption": "the pink girl and the smiling shirt",
-      "option_a": "the smiling girl and the pink shirt",
-      "option_b": "the pink girl and the smiling shirt",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 71,
-      "true_caption": "the young girl and the pink shirt",
-      "false_caption": "the pink girl and the young shirt",
-      "option_a": "the pink girl and the young shirt",
-      "option_b": "the young girl and the pink shirt",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 72,
-      "true_caption": "the white legs and the long tail",
-      "false_caption": "the long legs and the white tail",
-      "option_a": "the long legs and the white tail",
-      "option_b": "the white legs and the long tail",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 73,
-      "true_caption": "the white legs and the orange tail",
-      "false_caption": "the orange legs and the white tail",
-      "option_a": "the orange legs and the white tail",
-      "option_b": "the white legs and the orange tail",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 74,
-      "true_caption": "the white legs and the mesh table",
-      "false_caption": "the mesh legs and the white table",
-      "option_a": "the white legs and the mesh table",
-      "option_b": "the mesh legs and the white table",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 75,
-      "true_caption": "the white legs and the sleeping cat",
-      "false_caption": "the sleeping legs and the white cat",
-      "option_a": "the white legs and the sleeping cat",
-      "option_b": "the sleeping legs and the white cat",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 76,
-      "true_caption": "the white legs and the fluffy cat",
-      "false_caption": "the fluffy legs and the white cat",
-      "option_a": "the fluffy legs and the white cat",
-      "option_b": "the white legs and the fluffy cat",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 77,
-      "true_caption": "the white legs and the orange cat",
-      "false_caption": "the orange legs and the white cat",
-      "option_a": "the white legs and the orange cat",
-      "option_b": "the orange legs and the white cat",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 78,
-      "true_caption": "the long tail and the mesh table",
-      "false_caption": "the mesh tail and the long table",
-      "option_a": "the mesh tail and the long table",
-      "option_b": "the long tail and the mesh table",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 79,
-      "true_caption": "the orange tail and the mesh table",
-      "false_caption": "the mesh tail and the orange table",
-      "option_a": "the mesh tail and the orange table",
-      "option_b": "the orange tail and the mesh table",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 80,
-      "true_caption": "the long tail and the sleeping cat",
-      "false_caption": "the sleeping tail and the long cat",
-      "option_a": "the sleeping tail and the long cat",
-      "option_b": "the long tail and the sleeping cat",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 81,
-      "true_caption": "the long tail and the fluffy cat",
-      "false_caption": "the fluffy tail and the long cat",
-      "option_a": "the long tail and the fluffy cat",
-      "option_b": "the fluffy tail and the long cat",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 82,
-      "true_caption": "the mesh table and the sleeping cat",
-      "false_caption": "the sleeping table and the mesh cat",
-      "option_a": "the sleeping table and the mesh cat",
-      "option_b": "the mesh table and the sleeping cat",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 83,
-      "true_caption": "the mesh table and the fluffy cat",
-      "false_caption": "the fluffy table and the mesh cat",
-      "option_a": "the mesh table and the fluffy cat",
-      "option_b": "the fluffy table and the mesh cat",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 84,
-      "true_caption": "the mesh table and the orange cat",
-      "false_caption": "the orange table and the mesh cat",
-      "option_a": "the mesh table and the orange cat",
-      "option_b": "the orange table and the mesh cat",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 85,
-      "true_caption": "the rusty fire hydrant and the concrete ground",
-      "false_caption": "the concrete fire hydrant and the rusty ground",
-      "option_a": "the concrete fire hydrant and the rusty ground",
-      "option_b": "the rusty fire hydrant and the concrete ground",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 86,
-      "true_caption": "the white fire hydrant and the concrete ground",
-      "false_caption": "the concrete fire hydrant and the white ground",
-      "option_a": "the concrete fire hydrant and the white ground",
-      "option_b": "the white fire hydrant and the concrete ground",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A.",
-      "correct": 0
-    },
-    {
-      "id": 87,
-      "true_caption": "the rusty fire hydrant and the blue sky",
-      "false_caption": "the blue fire hydrant and the rusty sky",
-      "option_a": "the blue fire hydrant and the rusty sky",
-      "option_b": "the rusty fire hydrant and the blue sky",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
-    },
-    {
-      "id": 88,
-      "true_caption": "the white fire hydrant and the blue sky",
-      "false_caption": "the blue fire hydrant and the white sky",
-      "option_a": "the blue fire hydrant and the white sky",
-      "option_b": "the white fire hydrant and the blue sky",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
-    },
-    {
-      "id": 89,
-      "true_caption": "the rusty fire hydrant and the painted wall",
-      "false_caption": "the painted fire hydrant and the rusty wall",
-      "option_a": "the rusty fire hydrant and the painted wall",
-      "option_b": "the painted fire hydrant and the rusty wall",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 90,
-      "true_caption": "the concrete ground and the blue sky",
-      "false_caption": "the blue ground and the concrete sky",
-      "option_a": "the concrete ground and the blue sky",
-      "option_b": "the blue ground and the concrete sky",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 91,
-      "true_caption": "the concrete ground and the painted wall",
-      "false_caption": "the painted ground and the concrete wall",
-      "option_a": "the painted ground and the concrete wall",
-      "option_b": "the concrete ground and the painted wall",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 92,
-      "true_caption": "the concrete ground and the white wall",
-      "false_caption": "the white ground and the concrete wall",
-      "option_a": "the concrete ground and the white wall",
-      "option_b": "the white ground and the concrete wall",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 93,
-      "true_caption": "the concrete ground and the white building",
-      "false_caption": "the white ground and the concrete building",
-      "option_a": "the concrete ground and the white building",
-      "option_b": "the white ground and the concrete building",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 94,
-      "true_caption": "the blue sky and the painted wall",
-      "false_caption": "the painted sky and the blue wall",
-      "option_a": "the blue sky and the painted wall",
-      "option_b": "the painted sky and the blue wall",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 95,
-      "true_caption": "the blue sky and the white wall",
-      "false_caption": "the white sky and the blue wall",
-      "option_a": "the blue sky and the white wall",
-      "option_b": "the white sky and the blue wall",
-      "correct_label": "A",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 1
-    },
-    {
-      "id": 96,
-      "true_caption": "the black laptop and the stacked books",
-      "false_caption": "the stacked laptop and the black books",
-      "option_a": "the stacked laptop and the black books",
-      "option_b": "the black laptop and the stacked books",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B",
-      "correct": 1
-    },
-    {
-      "id": 97,
-      "true_caption": "the black laptop and the brown blinds",
-      "false_caption": "the brown laptop and the black blinds",
-      "option_a": "the brown laptop and the black blinds",
-      "option_b": "the black laptop and the brown blinds",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 98,
-      "true_caption": "the black laptop and the horizontal blinds",
-      "false_caption": "the horizontal laptop and the black blinds",
-      "option_a": "the horizontal laptop and the black blinds",
-      "option_b": "the black laptop and the horizontal blinds",
-      "correct_label": "B",
-      "pred_label": "B",
-      "raw_output": "B.",
-      "correct": 1
-    },
-    {
-      "id": 99,
-      "true_caption": "the black laptop and the white shirt",
-      "false_caption": "the white laptop and the black shirt",
-      "option_a": "the white laptop and the black shirt",
-      "option_b": "the black laptop and the white shirt",
-      "correct_label": "B",
-      "pred_label": "A",
-      "raw_output": "A",
-      "correct": 0
-    },
-    {
-      "id": 100,
-      "true_caption": "the stacked books and the vertical blinds",
-      "false_caption": "the vertical books and the stacked blinds",
-      "option_a": "the stacked books and the vertical blinds",
-      "option_b": "the vertical books and the stacked blinds",
       "correct_label": "A",
       "pred_label": "A",
       "raw_output": "A",

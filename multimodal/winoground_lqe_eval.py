@@ -199,6 +199,9 @@ def main():
     with open(args.output, "w") as f:
         json.dump(out_payload, f, indent=2)
     print(f"Results saved to {args.output}")
+    
+    # Bypass PyGILState_Release finalization crash
+    os._exit(0)
 
 if __name__ == "__main__":
     main()
