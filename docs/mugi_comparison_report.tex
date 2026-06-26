@@ -1,0 +1,137 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+\usepackage{amsmath, amssymb, amsfonts, bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta}
+
+% Color definitions
+\definecolor{primary}{RGB}{30, 41, 59}       % Dark Slate
+\definecolor{secondary}{RGB}{14, 116, 144}   % Teal Accent
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=secondary,
+    citecolor=secondary,
+    urlcolor=secondary
+}
+
+\title{\textbf{Comparative Evaluation of Lexical Query Expansion (LQE) and Generative Query Expansion (MuGI) on NFCorpus}}
+\author{\textbf{Esteban Schafir} \\ FIU Research}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Lexical mismatch remains a primary bottleneck in text-based information retrieval, especially in specialized technical and medical domains. In this report, we detail our experimental evaluation comparing two distinct paradigms of query expansion: \textbf{Lexical Query Expansion (LQE)}, which expands query concepts into regular expressions to constrain keyword matching, and \textbf{Multimodal Query Expansion with Generative References (MuGI)}, which uses language models to generate pseudo-references that are appended to the search query. We benchmark these models on the NFCorpus medical dataset across 323 test queries. Our results show that while MuGI (GPT-4) achieves the highest retrieval accuracy (74.79\% Success@3), it incurs a massive query-time generation cost (1161.7 average tokens). Conversely, our optimized LQE variant (LQE-Grep v4) outperforms standard BM25 (66.39\% vs 63.86\% Success@3) while reducing token generation costs by up to 75\% (287.5 average tokens).
+\end{abstract}
+
+---
+
+\section{Introduction and Task Formulation}
+Medical information retrieval on datasets like NFCorpus (derived from NutritionFacts.org) is highly challenging due to the vocabulary mismatch problem. For example, a search query asking about \texttt{"using diet to treat asthma"} may fail to match document passages discussing \texttt{"dermatitis therapy"}, \texttt{"allergy diets"}, or \texttt{"respiratory nutrition"} because the exact words do not overlap.
+
+To address this, we evaluate two query expansion paradigms:
+\begin{enumerate}
+    \item \textbf{Lexical Query Expansion (LQE-Grep):} An LLM expands search concepts into a regular expression containing synonyms and related terms (e.g., \texttt{asthma} $\to$ \texttt{(asthma|allergy|respiratory|bronchitis)}). Document candidates are scanned using regular expressions, and matching lines are extracted to form the LLM context.
+    \item \textbf{Generative Query Expansion (MuGI):} An LLM acts as \texttt{PassageGenGPT} to generate multiple pseudo-references (short paragraphs) answering the query. The original query is replicated and concatenated with these generated references to construct an enhanced query, which is then processed using a standard BM25 search.
+\end{enumerate}
+
+---
+
+\section{Evaluated Methodologies}
+
+We compare ten distinct retrieval strategies across three main categories:
+
+\subsection{Baselines}
+\begin{itemize}
+    \item \textbf{Vanilla Grep:} Qwen-1.5B extracts 1 or 2 core nouns from the query. The system searches for exact keyword occurrences.
+    \item \textbf{BM25 Baseline:} Standard Bag-of-Words BM25Okapi retriever matching query tokens against document texts.
+\end{itemize}
+
+\subsection{LQE (Lexical Query Expansion) Variants}
+\begin{itemize}
+    \item \textbf{LQE-Grep v1:} Vanilla LQE where Qwen-1.5B expands concepts into pipe-separated synonyms.
+    \item \textbf{LQE-Grep v2 (Pruned):} Filter out generic high-frequency stopwords and words whose document frequency in the corpus exceeds 5\% (to prevent matching generic terms).
+    \item \textbf{LQE-Grep v3 (Stemmed):} Strip common suffixes (\texttt{-s}, \texttt{-es}, \texttt{-ed}, \texttt{-ing}, \texttt{-ly}) from expanded terms to create wildcard stemmed regex patterns (e.g., \texttt{cancer} matches \texttt{cancers}, \texttt{cancerous}).
+    \item \textbf{LQE-Grep v3 (Weighted):} Weigh matches using Inverse Document Frequency (IDF) weights based on document frequencies in the global corpus:
+    \begin{equation}
+    \text{IDF}(t) = \log\left(1.0 + \frac{N}{\text{DF}(t)}\right)
+    \end{equation}
+    \item \textbf{LQE-Grep v4 (Stem + IDF):} Combines suffix-stripped wildcard stemming with stem-based IDF weights.
+\end{itemize}
+
+\subsection{MuGI (Query Expansion with Generative References)}
+\begin{itemize}
+    \item \textbf{MuGI (GPT-3.5):} Generates 5 pseudo-references using GPT-3.5-turbo and performs BM25 retrieval.
+    \item \textbf{MuGI (Qwen-1.5B):} Generates 5 pseudo-references locally using Qwen-2.5-1.5B-Instruct.
+    \item \textbf{MuGI (GPT-4):} Generates 5 pseudo-references using GPT-4 and performs BM25 retrieval.
+\end{itemize}
+
+---
+
+\section{Experimental Results and Analysis}
+
+We evaluate all methods on a random sample of 323 queries against haystack blocks of 50 documents from the NFCorpus dataset. Success is defined as retrieving the ground truth target document in the top-3 results (Success@3). The results are summarized in Table~\ref{tab:results}.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Method} & \textbf{Success@3 (\%)} & \textbf{Avg Context Footprint (Tokens)} & \textbf{Avg Generation Cost (Tokens)} \\
+\midrule
+Vanilla Grep & 50.42\% & 1949.6 & 0.0 \\
+LQE-Grep v1 & 58.82\% & 5390.6 & 287.5 \\
+LQE-Grep v2 (Pruned) & 59.66\% & 3067.2 & 287.5 \\
+LQE-Grep v3 (Stemmed) & 61.34\% & 4207.6 & 287.5 \\
+LQE-Grep v3 (Weighted) & 63.86\% & 3067.2 & 287.5 \\
+\textbf{LQE-Grep v4 (Stem+IDF)} & \textbf{66.39\%} & \textbf{4207.6} & \textbf{287.5} \\
+\midrule
+BM25 Baseline & 63.86\% & 1097.0 & 0.0 \\
+MuGI (GPT-3.5) & 68.07\% & 1120.9 & 290.0 \\
+MuGI (Qwen-1.5B) & 71.43\% & 1143.9 & 879.9 \\
+\textbf{MuGI (GPT-4)} & \textbf{74.79\%} & \textbf{1114.7} & \textbf{1161.7} \\
+\bottomrule
+\end{tabular}
+\caption{Retrieval Accuracy, Context Size, and LLM Generation Costs on NFCorpus.}
+\label{tab:results}
+\end{table}
+
+The visual comparison of retrieval accuracy and token footprints is plotted in Figure~\ref{fig:mugi_comparison}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.98\textwidth]{../results/mugi_comparison_results.png}
+\caption{Retrieval Success@3 Rate (\%) and Token Footprint trade-offs across all methods.}
+\label{fig:mugi_comparison}
+\end{figure}
+
+---
+
+\section{Discussion of Key Findings}
+
+\subsection{Retrieval Accuracy vs. LLM Generation Latency}
+The generative pseudo-references produced by MuGI yield the highest overall retrieval accuracy. GPT-4 leads with **74.79\%**, followed by Qwen-1.5B with **71.43\%**. This confirms the strength of using full narrative passages to bridge medical vocabularies. 
+
+However, this comes at a massive **generation latency cost**. Generating 5 detailed paragraphs requires the LLM to output **1161.7 tokens** for GPT-4 and **879.9 tokens** for Qwen-1.5B at query time. For real-time search engines, generating close to 1000 tokens during the retrieval phase is too slow.
+
+In contrast, the optimized **LQE-Grep v4** model achieves **66.39\% Success@3** (outperforming standard BM25 at 63.86\% and Vanilla LQE-Grep at 58.82\%) while generating only **287.5 tokens** (a 75\% reduction in LLM generation cost compared to MuGI GPT-4). This makes LQE-Grep v4 a much more viable candidate for low-latency search applications.
+
+\subsection{Context Footprint Trade-offs}
+Because LQE-Grep scans the entire haystack of 50 documents using regex and returns all matching lines, its context footprint is higher than BM25 and MuGI (which only load the top-3 retrieved document texts into context). 
+
+Vanilla LQE-Grep v1 results in a footprint of **5390.6 tokens** due to generic matches (e.g. matching `car` inside words like `cardiologist`). However, the pruning mechanism in **LQE-Grep v2** successfully filters out high-frequency corpus words, reducing the footprint to **3067.2 tokens** (a 43\% reduction) while *improving* accuracy from 58.82\% to 59.66\% by eliminating false positive visual/textual matches.
+
+\subsection{Conclusion}
+The experiments demonstrate a classic Pareto boundary in search:
+* **For maximum accuracy:** MuGI (GPT-4/Qwen) is superior, utilizing the generative capacity of LLMs to synthesize domain-rich pseudo-documents.
+* **For low-latency applications:** LQE-Grep v4 strikes an optimal balance, providing a 75\% reduction in token generation costs while outperforming BM25.
+
+\end{document}

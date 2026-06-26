@@ -1,0 +1,254 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+\usepackage{amsmath, amssymb, amsfonts, bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, calc, arrows.meta}
+
+% Color definitions
+\definecolor{primary}{RGB}{30, 41, 59}       % Dark Slate
+\definecolor{secondary}{RGB}{14, 116, 144}   % Teal Accent
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=secondary,
+    citecolor=secondary,
+    urlcolor=secondary
+}
+
+\title{\textbf{Compiling Online Reasoning into Offline Learned Sparse Visual Indexes:\\A HIVE-to-V-SPLADE Distillation Framework}}
+\author{\textbf{Esteban Schafir} \\ FIU Research}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Multimodal Information Retrieval (MMIR) is currently divided into two suboptimal paradigms: low-latency learned sparse retrievers that lack complex reasoning capability, and high-latency LLM-driven pipelines that resolve reasoning gaps online at high computational cost. In this proposal, we introduce a teacher-student distillation framework that compiles the multi-step online reasoning loop of a hypothesis-driven retriever (HIVE) into a static, query-encoding-free visual sparse index (V-SPLADE) offline. By supervising the student sparse encoder with reasoning-aware gating targets and listwise rank margins, we bake query-time reasoning directly into visual document term expansions. This architecture allows complex reasoning visual search to be executed in sub-10ms using standard inverted index lookup engines.
+\end{abstract}
+
+---
+
+\section{Introduction and Theoretical Motivation}
+Modern Visual Document Retrieval (VDR) requires matching visual pages (e.g., charts, schematics, academic papers) to text queries. Historically, this has been solved using two extremes:
+\begin{enumerate}
+    \item \textbf{Learned Sparse Retrieval (LSR):} Models like SPLADE and V-SPLADE map document images offline to a vocabulary-indexed sparse space $w_p \in \mathbb{R}^{|V|}$. At search time, a text query $q$ is matched via simple dot-product calculations ($w_q^T w_p$) over inverted indexes, yielding sub-10ms latency. However, these models cannot handle complex queries that require multi-hop visual reasoning because they are trained using simple, literal image captions.
+    \item \textbf{Reasoning-Intensive Pipelines:} Frameworks like HIVE deploy Large Language Models (LLMs) at query time to analyze initial search candidate documents, synthesize compensatory queries, and verify/rerank the final list. While achieving state-of-the-art accuracy on reasoning-intensive benchmarks (e.g., MM-BRIGHT), they require multiple LLM inferences per query, adding seconds of latency and massive API costs.
+\end{enumerate}
+
+The core research question of this proposal is: \textit{Can we compile the reasoning capability of a multi-stage online LLM pipeline into a static visual sparse representation offline?} 
+
+We propose a teacher-student framework to perform this compilation. Under this framework, the online HIVE pipeline serves as the **Teacher** during training, producing reasoning targets. The V-SPLADE model serves as the **Student**, learning to pre-activate reasoning-related tokens directly from image pixels so that no LLM or deep vision network is needed at query time.
+
+---
+
+\section{Formulation of the Distillation Framework}
+
+The architecture of the proposed distillation pipeline is illustrated in Figure~\ref{fig:distill_arch}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.8cm, every node/.style={font=\sffamily\small}]
+    \tikzstyle{block} = [draw, rectangle, minimum width=2.5cm, minimum height=0.8cm, text centered, rounded corners=3pt, draw=primary, line width=1pt]
+    \tikzstyle{arrow} = [thick, ->, >=stealth, draw=primary]
+    
+    % Nodes
+    \node (img) [block] {Document Image $d$};
+    \node (stud) [block, right of=img, node distance=4.5cm] {Student V-SPLADE\\(Visual Encoder)};
+    \node (teach) [block, below of=img, node distance=2.2cm] {Teacher HIVE\\(Online LLM Loop)};
+    \node (loss) [block, right of=stud, node distance=4.5cm] {Distillation Losses\\$\mathcal{L}_{\text{lexical}} + \mathcal{L}_{\text{rank}}$};
+    
+    % Paths
+    \draw [arrow] (img) -- (stud);
+    \draw [arrow] (img) -- (teach);
+    \draw [arrow] (teach) -- node[midway, right] {Rationales $R$, Synthesized $\hat{q}$} (loss);
+    \draw [arrow] (stud) -- node[midway, above] {Sparse Vector $w_p$} (loss);
+\end{tikzpicture}
+\caption{Architecture of the HIVE-to-V-SPLADE Distillation Pipeline.}
+\label{fig:distill_arch}
+\end{figure}
+
+\subsection{The Teacher Model (HIVE)}
+Given a dataset of training queries $Q$ and a visual document corpus $C$, HIVE acts as the teacher. For a given training query $q = (q_t, q_v)$ and document image $d \in C$, HIVE generates:
+\begin{itemize}
+    \item \textbf{A listwise verification score $S_{\text{HIVE}}(d \mid q)$:} Representing the reasoning-based relevance of document $d$ to query $q$.
+    \item \textbf{A compensatory query $\hat{q}$:} A sequence of tokens synthesized by the LLM (Stage 2) representing the logical concepts missing from initial candidate pools.
+    \item \textbf{A verification rationale $R(d, q)$:} The step-by-step reasoning explanation generated by the LLM (Stage 4) verifying why document $d$ matches query $q$.
+\end{itemize}
+
+\subsection{The Student Model (V-SPLADE)}
+The student is a visual learned sparse encoder. It takes the document image $d$ and maps its visual tokens to a sparse representation $w_p \in \mathbb{R}^{|V|}$:
+\begin{equation}
+w_p[v] = \max_{t=1 \dots L} \log(1 + \text{ReLU}(\text{LMHead}(h_t)[v]))
+\end{equation}
+where $h_t$ are visual hidden states and $v \in V$ is a vocabulary token.
+
+\subsection{Distillation Objectives}
+To transfer reasoning capabilities, we introduce two distinct training objectives:
+
+\subsubsection{Objective 1: Reasoning-Aware Gated Supervision (Lexical Distillation)}
+In standard V-SPLADE, vocabulary activations are gated by literal caption tokens. To encode reasoning, we compile a target reasoning vocabulary vector $W_R \in \mathbb{R}^{|V|}$ by tokenizing the union of the original query $q_t$, the LLM-synthesized compensatory query $\hat{q}$, and key terms in the verification rationale $R(d, q)$:
+\begin{equation}
+W_R = \text{BagOfWords}(q_t \cup \hat{q} \cup \text{Keywords}(R(d, q)))
+\end{equation}
+
+We define the overlap gate $o_{\text{reason}}[v]$ for the student's sparse document vector as:
+\begin{equation}
+o_{\text{reason}}[v] = w_p^{\text{sg}}[v] \cdot W_R[v]
+\end{equation}
+where $w_p^{\text{sg}}$ is the stop-gradient representation of the image logits. We sharpen and normalize this gate to compute token targets $\alpha_{\text{reason}}[v]$:
+\begin{equation}
+\alpha_{\text{reason}}[v] = \frac{o_{\text{reason}}[v]^{1/\tau}}{\sum_{v'} o_{\text{reason}}[v']^{1/\tau}}
+\end{equation}
+The student is supervised using the cross-entropy loss against these reasoning-expanded targets:
+\begin{equation}
+\mathcal{L}_{\text{lexical}} = -\frac{1}{B} \sum_{i=1}^B \sum_v \alpha_{\text{reason}, i}[v] \log \sigma(z_{p_i}[v])
+\end{equation}
+where $z_p[v]$ are the visual logits before activation.
+
+\subsubsection{Objective 2: Rank Alignment Distillation (Margin MSE)}
+To match the ranking outputs of HIVE, we minimize the difference between the student's inner product scores and the teacher's listwise reranking scores over document candidate pairs $(d_i, d_j)$:
+\begin{equation}
+\mathcal{L}_{\text{rank}} = \sum_{(d_i, d_j)} \left| (s_{\text{SPLADE}}(q, d_i) - s_{\text{SPLADE}}(q, d_j)) - (S_{\text{HIVE}}(d_i \mid q) - S_{\text{HIVE}}(d_j \mid q)) \right|^2
+\end{equation}
+where $s_{\text{SPLADE}}(q, d) = w_q^T w_p$ is V-SPLADE's query-indexing matching score.
+
+The total student loss is:
+\begin{equation}
+\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{lexical}} + \lambda_1 \mathcal{L}_{\text{rank}} + \lambda_2 \mathcal{L}_{\text{sparsity}}
+\end{equation}
+where $\mathcal{L}_{\text{sparsity}}$ is the $L1$ regularization on document weights to keep the index sparse.
+
+---
+
+\section{Detailed Use Case Walkthroughs}
+
+\subsection{Example 1: Electrical Circuit Analysis (Logical Visual Dependencies)}
+Consider a visual document database containing circuit diagrams.
+\begin{itemize}
+    \item \textbf{The Document Image $d$ (assigned as Doc 25):} A diagram showing a battery, a switch in the **open position** (depicted as a visual gap in the wiring), and a light-emitting diode (LED).
+    \item \textbf{The Query $q$:} Text query \texttt{"Why is my LED not lighting up?"}.
+    \item \textbf{The HIVE Teacher Loop (Offline Training):}
+    \begin{enumerate}
+        \item \textit{Initial Retrieval:} Finds documents discussing dead batteries or burnt-out resistors.
+        \item \textit{Query Synthesis:} The teacher LLM analyzes the layout of Doc 25, detects the open switch, and generates the compensatory query $\hat{q}$: \texttt{"open switch loop circuit current flow LED"}.
+        \item \textit{Verification:} The LLM generates the rationale $R(\text{Doc 25}, q)$: \textit{"The LED fails to illuminate because the diagram depicts an open switch, which breaks circuit loop continuity, preventing current flow."}
+    \end{enumerate}
+    \item \textbf{Reasoning Vocabulary Extraction:} The gating vector $W_R$ is compiled from the key terms: \{\texttt{switch}, \texttt{open}, \texttt{continuity}, \texttt{break}, \texttt{current}, \texttt{flow}\}.
+    \item \textbf{Student Mapping Distillation:} The student V-SPLADE visual encoder learns to map the specific visual features of the wire gap in Doc 25 directly to these logical reasoning tokens during training.
+    
+    \item \textbf{Offline Indexing Phase (Static Database Construction):} 
+    When indexing the corpus, the fine-tuned, frozen V-SPLADE model runs once over Doc 25. It detects the open switch and outputs the following sparse vector:
+    \begin{equation}
+    w_{\text{Doc 25}} = \{\text{\texttt{circuit}}: 4.5, \text{\texttt{diagram}}: 3.8, \text{\texttt{open}}: 4.0, \text{\texttt{break}}: 3.5, \text{\texttt{continuity}}: 3.0\}
+    \end{equation}
+    These weights are saved in a static **inverted index** (the search engine's internal dictionary):
+    \begin{align*}
+        \text{\texttt{circuit}} &\to [(\text{Doc 1}, 2.1), (\text{Doc 25}, 4.5)] \\
+        \text{\texttt{open}} &\to [(\text{Doc 25}, 4.0)] \\
+        \text{\texttt{break}} &\to [(\text{Doc 25}, 3.5), (\text{Doc 88}, 1.2)] \\
+        \text{\texttt{continuity}} &\to [(\text{Doc 25}, 3.0)]
+    \end{align*}
+    
+    \item \textbf{Query-Time Inference (Sub-10ms Serving):} 
+    When a user searches for \texttt{"Why is my circuit broken?"}:
+    \begin{enumerate}
+        \item The text query is tokenized into \texttt{circuit} and \texttt{broken} (stemmed to \texttt{break}).
+        \item The system performs a standard dictionary lookup on the inverted index under \texttt{circuit} and \texttt{break}.
+        \item It immediately retrieves Doc 25 and computes the matching score via dot product: 
+        \begin{equation}
+        \text{Score} = w_q[\text{\texttt{circuit}}] \cdot 4.5 + w_q[\text{\texttt{break}}] \cdot 3.5 = 8.0
+        \end{equation}
+        This lookup is completely static, requires **no GPU execution or active LLMs at query time**, yet returns the correct document containing the visual reasoning explanation.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Example 2: Financial Report Layouts (Data Chart Reasoning)}
+Consider a visual database containing corporate quarterly reports.
+\begin{itemize}
+    \item \textbf{The Document Image $d$:} A page displaying a bar chart showing declining revenue over four consecutive quarters.
+    \item \textbf{The Query $q$:} Text query \texttt{"Which companies show consecutive quarters of negative growth?"}
+    \item \textbf{The HIVE Teacher Loop:}
+    \begin{enumerate}
+        \item \textit{Initial Retrieval:} Matches documents mentioning "negative growth" in the text, missing reports where the decline is only shown visually in the chart.
+        \item \textit{Query Synthesis:} LLM analyzes the chart, notes the declining bars, and synthesizes $\hat{q}$: \texttt{"revenue decline chart consecutive quarters negative slope trend"}.
+        \item \textit{Verification:} The LLM verifies the document with $R$: \textit{"The chart shows four declining bars representing successive quarterly revenue drops."}
+    \end{enumerate}
+    \item \textbf{Lexical Gating Target $W_R$:} Contains \{\texttt{chart}, \texttt{consecutive}, \texttt{decline}, \texttt{revenue}, \texttt{slope}, \texttt{drop}\}.
+    \item \textbf{Student Distillation:} V-SPLADE's visual encoder learns to map the visual representation of descending bar charts to lexical tags like \texttt{decline}, \texttt{negative}, and \texttt{quarters}.
+    \item \textbf{Query-Time Inference:} A text search matching "consecutive quarters of negative growth" hits the document because the visual encoder pre-activated those semantic concepts in the index offline.
+\end{itemize}
+
+\section{Implementation Plan and Hardware Workflow}
+We outline a three-phase research plan for the implementation of the HIVE-to-V-SPLADE distillation framework, specifying the operations, data flow, and hardware requirements for each stage of development.
+
+\subsection{Phase 1: Offline Teacher Dataset Generation}
+\begin{itemize}
+    \item \textbf{Objective:} Run the frozen HIVE pipeline over a training dataset of queries and visual documents to build a cache of teacher rationales, compensatory queries, and relevance margins.
+    \item \textbf{Data Flow:} 
+    \begin{equation}
+    (q_t, q_v, d) \xrightarrow{\text{LLM Reasoning}} (\hat{q}, R(d, q), S_{\text{HIVE}}(d \mid q))
+    \end{equation}
+    All outputs are cached into a static \texttt{distillation\_targets.json} dataset.
+    \item \textbf{Hardware Requirements:} External LLM API endpoints (e.g., OpenAI API) or a single local GPU (16GB--24GB VRAM) running a quantized open-source model (e.g., Qwen-2.5-7B-Instruct). No large-scale cluster is required since this is a one-time inference pass.
+\end{itemize}
+
+\subsection{Phase 2: Offline Student Distillation (Training)}
+\begin{itemize}
+    \item \textbf{Objective:} Train the V-SPLADE student model by minimizing the joint loss $\mathcal{L}_{\text{total}}$.
+    \item \textbf{Methodology:} The vision transformer (ViT) backbone parameters are kept frozen to conserve resources. Backpropagation is applied to update only the sparse vocabulary projection head (\texttt{LMHead}) and the softplus-activated query lookup table.
+    \item \textbf{Hardware Requirements:} A single standard workstation GPU (e.g., NVIDIA RTX 3090, RTX 4090, or A10) with 16GB--24GB VRAM. End-to-end projection head tuning is lightweight and completes in a few hours on a single card.
+\end{itemize}
+
+\subsection{Phase 3: Visual Indexing and Serving (Production)}
+\begin{itemize}
+    \item \textbf{Objective:} Index the visual document corpus and serve queries in real-time under sub-10ms constraints.
+    \item \textbf{Process:}
+    \begin{enumerate}
+        \item \textit{Indexing (Offline):} Run the trained, frozen V-SPLADE visual encoder once over the visual document corpus. The resulting sparse representation vectors $w_p \in \mathbb{R}^{|V|}$ are written to a standard inverted index (e.g., PISA or Elasticsearch).
+        \item \textit{Serving (Online):} Incoming query tokens are looked up in the query table to generate $w_q \in \mathbb{R}^{|V|}$. Matches are retrieved via dot product $w_q^T w_p$ using CPU-efficient inverted list intersections.
+    \end{enumerate}
+    \item \textbf{Hardware Requirements:} \textbf{CPU-only commodity web servers.} No GPUs or neural accelerators are executed in the online query-response loop, significantly reducing deployment and infrastructure costs.
+\end{itemize}
+
+\subsection{Target Datasets for Training and Evaluation}
+To develop and evaluate the reasoning capabilities of the distilled student model, we propose using three primary classes of datasets:
+
+\begin{enumerate}
+    \item \textbf{MM-BRIGHT (Multimodal Benchmarking of Reasoning In General Knowledge Retrieval):}
+    \begin{itemize}
+        \item \textbf{Description:} Contains 2,803 query-image pairs across 29 technical, scientific, and logical domains. Queries require multi-hop reasoning over documents containing complex figures, tables, and charts.
+        \item \textbf{Role in Pipeline:} This is the \textbf{primary benchmark} for evaluation. The train/validation splits will be used to generate teacher labels, and the test split will measure the student's reasoning-aware retrieval performance.
+    \end{itemize}
+    
+    \item \textbf{ViDoRe (Visual Document Retrieval Benchmark):}
+    \begin{itemize}
+        \item \textbf{Description:} A comprehensive suite containing visual page documents (e.g., ArxivQA, DocVQA, InfoVQA, Shift15, TatDQA) covering layout, charts, infographics, and mathematical representations.
+        \item \textbf{Role in Pipeline:} We use subsets of ViDoRe (specifically ArxivQA and TatDQA) to pre-train or fine-tune the student's basic visual-textual mapping offline. Standard test sets are used to verify that the student retains strong generic page-retrieval performance without experiencing catastrophic forgetting of layout cues.
+    \end{itemize}
+    
+    \item \textbf{M-BEIR (Multimodal BEIR):}
+    \begin{itemize}
+        \item \textbf{Description:} A large, unified multimodal retrieval benchmark featuring diverse retrieval tasks such as image-to-text, text-to-image, and visual document matching.
+        \item \textbf{Role in Pipeline:} Provides a high-quality corpus for out-of-domain (OOD) generalization testing to evaluate if the distilled V-SPLADE model can generalize reasoning capabilities to unseen retrieval distributions.
+    \end{itemize}
+\end{enumerate}
+
+---
+
+\section{Research Challenges and Proposed Mitigations}
+
+\subsection{Encoder Capacity Bottleneck}
+\textbf{Challenge:} Can a visual transformer (ViT) with a vocabulary-projection head match the capacity of a large autoregressive language model? 
+\textbf{Mitigation:} We propose utilizing a deep visual projection model (incorporating late-interaction visual hidden states like ColPali) and optimizing the vocabulary size $|V|$. We also apply high temperatures ($\tau \approx 2.0$) during early training epochs to soften target distributions, allowing the student to learn coarse associations before sharpening lexical weights.
+
+\subsection{Teacher Generation Cost}
+\textbf{Challenge:} Running HIVE to generate $\hat{q}$ and $R(d, q)$ on massive datasets is financially and computationally expensive.
+\textbf{Mitigation:} We propose a active-learning-based distillation loop. Instead of labeling the entire corpus, we query HIVE only for document pairs that lie close to the decision boundary of an initial baseline V-SPLADE model. This reduces the required LLM API queries by up to 90\% while preserving distillation quality.
+
+\end{document}

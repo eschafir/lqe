@@ -1,0 +1,76 @@
+[
+  {
+    "query_id": "PLAIN-2991",
+    "query_text": "Cholesterol and Lower Back Pain",
+    "compensatory_query": "\"Cholesterol levels and lower back pain\"",
+    "ground_truth_ids": [
+      "MED-4423",
+      "MED-4424"
+    ],
+    "candidate_ids": [
+      "MED-4424",
+      "MED-1664",
+      "MED-1667",
+      "MED-1657",
+      "MED-1663",
+      "MED-4423"
+    ],
+    "rationales": {
+      "MED-4424": "### Rationale:\n\n1. **Relevance to Cholesterol**: The document discusses atherosclerosis, which is closely linked to elevated cholesterol levels. Elevated cholesterol is known to contribute to plaque buildup in arteries, potentially leading to conditions such as heart disease and stroke. This directly relates to the user's query about cholesterol and lower back pain.\n\n2. **Relevance to Lower Back Pain**: The document mentions that atherosclerosis can cause reduced blood flow to the lumbar spine, which may lead to lower back pain. It also notes that smoking and high cholesterol levels are associated with increased incidence of disc degeneration and lower back pain.\n\n3. **Systematic Review Structure**: The document follows a structured approach similar to what would be expected in a systematic review",
+      "MED-1664": "### Rationale:\n\nThe candidate document discusses the intervertebral disc, which is not directly related to cholesterol levels or lower back pain. Cholesterol is a type of fat found in the blood, while lower back pain can have various causes including muscle strain, spinal issues, or even psychological factors. Therefore, the content provided does not address either aspect mentioned in the original user query.\n\n###",
+      "MED-1667": "### Rationale:\n\nThe candidate document discusses non-specific low back pain, which is related to the original user's query about cholesterol and lower back pain. However, the content does not specifically address cholesterol or its relationship to lower back pain. Instead, it focuses on general information about low back pain, including prevalence rates, potential causes, diagnostic methods, treatment options, and overall management strategies.\n\nWhile some aspects of the document may indirectly relate to cholesterol (e.g., discussing genetics), these connections are not central to addressing the specific question asked. Therefore, while there might be tangential overlap, the document does not provide a direct, comprehensive answer to the query about cholesterol and lower back pain.\n\n###",
+      "MED-1657": "### Rationale:\n\n1. **Relevance to Cholesterol**: \n   - The document discusses cholesterol-related issues through its focus on arterial diseases affecting the lumbar spine.\n   - It mentions \"atheromatous lesions\" which can be related to high cholesterol levels leading to plaque buildup in blood vessels.\n\n2. **Relevance to Lower Back Pain**:\n   - The study examines the relationship between arterial disease and chronic low back pain.\n   - It notes that individuals with occluded or narrowed arteries (\"stenotic changes\") are more likely to have experienced chronic lower back pain compared to those without such findings.\n\n3. **Connection Between Cholesterol and Arterial Disease**:\n   - While not explicitly stated, the mention of \"arterial diseases\"",
+      "MED-1663": "### Rationale:\n\nTo determine the relevance of the candidate document to the original user query (\"Cholesterol and Lower Back Pain\"), we need to analyze how closely the content relates to both topics.\n\n1. **Cholesterol**: \n   - The document mentions \"serum cholesterol levels\" which directly addresses the topic of cholesterol.\n   \n2. **Lower Back Pain**:\n   - The document discusses \"long-term nonspecific lower back pain,\" indicating it covers conditions related to lower back pain.\n   - It specifically mentions \"occlusion of lumbar and middle sacral arteries\" as a factor contributing to lower back pain.\n   - The document also notes that \"disc degeneration was associated with occluded lumbar/middle sacral arteries.\"\n\nGiven these points",
+      "MED-4423": "### Rationale:\n\nThe candidate document discusses the anatomy and physiology of blood supply to the spinal cord after thoracoabdominal aortic aneurysm repair. It specifically mentions the presence of a robust collateral network that explains the preservation of spinal cord perfusion when segmental vessels are interrupted. \n\nIn contrast, the original user query asks about cholesterol and lower back pain. While both topics relate to health issues affecting the spine, there is no clear connection between the content of the candidate document and the specific query regarding cholesterol and lower back pain.\n\n###"
+    },
+    "relevance_scores": {
+      "MED-4424": 0.0,
+      "MED-1664": 0.0,
+      "MED-1667": 1.5,
+      "MED-1657": 0.0,
+      "MED-1663": 0.0,
+      "MED-4423": 0.0
+    }
+  },
+  {
+    "query_id": "PLAIN-153",
+    "query_text": "How Should I Take Probiotics?",
+    "compensatory_query": "\"How can I effectively incorporate probiotics into my diet to enhance overall digestive health?\"",
+    "ground_truth_ids": [
+      "MED-3679"
+    ],
+    "candidate_ids": [
+      "MED-2105",
+      "MED-3692",
+      "MED-1413",
+      "MED-3695",
+      "MED-1248",
+      "MED-948",
+      "MED-2325",
+      "MED-3677",
+      "MED-3679"
+    ],
+    "rationales": {
+      "MED-2105": "### Rationale:\n\nThe candidate document discusses recent perspectives on the relations between gut microbiota, fecal mutagenicity, and genotoxicity. It mentions that high-protein diets can increase N-nitroso compounds in fecal water and cause greater DNA damage using the Comet assay. The document also touches upon the effects of other dietary interventions like non-digestible carbohydrates and probiotics on reducing fecal genotoxicity.\n\nWhile the document provides some information about probiotics, it does not directly address how one should take or use probiotics. Instead, it focuses more broadly on the relationship between gut microbiota, diet, and genotoxicity. Therefore, while there might be indirect implications related to probiotic usage, the document itself does not",
+      "MED-3692": "### Rationale:\n\nThe candidate document discusses the role of probiotics in human health and their effectiveness through various studies. It provides background information on probiotics, including their definition, benefits, and the number of studies conducted on them. However, it does not directly address how one should take probiotics.\n\nWhile the document touches upon the importance of probiotics and their potential benefits, it does not provide specific instructions on dosage, frequency, or other details about taking probiotics. Therefore, while related to the topic, the document is not specifically relevant to answering the question \"How Should I Take Probiotics?\" \n\n###",
+      "MED-1413": "Rationale: The provided candidate document discusses the role of the human gastrointestinal (GI) tract and its microbiome in various aspects of health, including digestion, carbohydrate metabolism, and immune regulation. However, it does not directly address how to take or use probiotics. While the document mentions probiotics as one factor affecting the gut microbiota, it does not provide specific instructions on taking probiotics.\n\nThe content focuses more on understanding the impact of diet on the gut microbiome rather than providing practical advice on using probiotics. Therefore, while related to the topic of probiotics, the document is not directly relevant to answering the question \"How Should I Take Probiotics?\".",
+      "MED-3695": "### Rationale:\n\nThe candidate document titled \"Probiotics for the prevention of pediatric antibiotic-associated diarrhea\" provides detailed information about the effectiveness and potential side effects of probiotics in preventing antibiotic-associated diarrhea (AAD) in children. This information directly addresses the original user's query about how to take probiotics.\n\n1. **Relevance to Taking Probiotics**: The document discusses various types of probiotics (Lactobacilli spp., Bifidobacterium spp., Streptococcus spp., and Saccharomyces boulardii) and their effectiveness in preventing AAD. It also mentions specific dosages and strains that have been studied, which aligns closely with the question about taking probiotics.\n\n2. **Information About",
+      "MED-1248": "### Rationale:\n\nThe candidate document discusses patient attitudes towards rectal drug administration during anesthesia, specifically focusing on the use of diclofenac sodium as a pain reliever. It does not directly address how one should take probiotics or provide specific guidance on taking probiotics.\n\nWhile the content touches on patient preferences regarding different routes of administration, it does not offer practical advice on how to take probiotics. Therefore, while related to health-related topics, the document is not logically relevant to answering the question \"How Should I Take Probiotics?\" \n\n###",
+      "MED-948": "### Rationale:\n\nThe candidate document discusses the microbiological quality of sprouts and seeds sold in Korea, focusing specifically on the presence of various pathogens such as Salmonella, E. coli O157:H7, and Enterobacter sakazakii. The information provided does not directly address how to take probiotics or provide specific instructions for taking them.\n\nWhile the content touches upon the general topic of microbial contamination in food products, it does not offer practical advice on consuming probiotics. Therefore, the document is not logically relevant to answering the original user query about how to take probiotics.\n\n###",
+      "MED-2325": "Rationale: The candidate document discusses the effects of dietary restriction on lifespan and how it affects different components of the aging process. It does not specifically address probiotics or their use in taking probiotics. Therefore, while the information provided could potentially be used to inform someone about probiotic usage, it is not directly relevant to the original user's query.",
+      "MED-3677": "### Rationale:\n\nThe provided document discusses the concept of probiotics and their potential to produce neuroactive compounds through microbial endocrinology. It explains how these probiotics can act as delivery vehicles for neuroactive compounds, thereby influencing both gut and brain health. However, the document does not directly address how one should take or consume probiotics themselves.\n\nWhile the information about probiotics' potential effects on neurological health is interesting, it does not provide specific guidance on taking or using probiotics. Therefore, while the content indirectly relates to the question, it does not offer direct advice on how to take probiotics.\n\n###",
+      "MED-3679": "Rationale: The candidate document discusses the impact of timing and meal composition on the survival of probiotics during gastrointestinal transit using an in vitro digestive system model. It specifically addresses how probiotics fare under different conditions such as before, during, and after meals, including the effects of meal buffering capacity and fat content. While it does not directly address taking probiotics, it provides valuable information about the factors influencing their effectiveness. Therefore, while not perfect, it offers insights into how one might take probiotics effectively based on the provided context."
+    },
+    "relevance_scores": {
+      "MED-2105": 0.0,
+      "MED-3692": 2.0,
+      "MED-1413": 2.0,
+      "MED-3695": 0.0,
+      "MED-1248": 0.0,
+      "MED-948": 0.0,
+      "MED-2325": 1.0,
+      "MED-3677": 2.0,
+      "MED-3679": 4.0
+    }
+  }
+]
