@@ -217,28 +217,29 @@ We train the model using:
     \item \textbf{Serving Latency:} Since document encoding is fully decoupled from query serving, matching is performed via simple CPU-level dot products, yielding a latency of under 5ms.
 \end{itemize}
 
-\subsection{Target Datasets for Training and Evaluation}
-To develop and evaluate the reasoning capabilities of the distilled student model, we propose using three primary classes of datasets:
+\subsection{Distillation Data Evolution: Multi-Phase Dataset Design}
+To train the vocabulary lookup table $L_{\text{LUT}}$ (which maps Qwen's $151,936$-dimensional vocabulary directly to retrieval weights), we designed a two-phase target data generation process, scaling the number of targets and expanding vocabulary domain diversity.
 
+\subsubsection{Initial Generation (Phase 1: MM-BRIGHT)}
+Our initial training targets were extracted exclusively from the training split of **MM-BRIGHT** (containing $1,041$ query-document pairs spanning 20 scientific and technical configurations). 
+*   **Methodology:** The dataset provides pre-extracted OCR text for visual document pages, allowing the teacher LLM to read and rank target layouts directly from text.
+*   **Limitation:** While highly rich in scientific logic, $1,041$ targets were severely insufficient. Because only a minute fraction of Qwen's $151,936$ tokens were seen during training, OOD test splits containing specialized legal or mathematical concepts (like \texttt{law} or \texttt{quantumcomputing}) reverted to default, untrained weights, leading to vocabulary coverage degradation.
+
+\subsubsection{Target Expansion (Phase 2: Text-Rich BEIR Datasets)}
+To resolve this vocabulary-coverage bottleneck, we scaled the target dataset to **$2,541$ queries** by pulling $500$ targets from three large, domain-specific text retrieval datasets:
 \begin{enumerate}
-    \item \textbf{MM-BRIGHT (Multimodal Benchmarking of Reasoning In General Knowledge Retrieval):}
-    \begin{itemize}
-        \item \textbf{Description:} Contains 2,803 query-image pairs across 29 technical, scientific, and logical domains. Queries require multi-hop reasoning over documents containing complex figures, tables, and charts.
-        \item \textbf{Role in Pipeline:} This is the \textbf{primary benchmark} for evaluation. The train/validation splits will be used to generate teacher labels, and the test split will measure the student's reasoning-aware retrieval performance.
-    \end{itemize}
-    
-    \item \textbf{ViDoRe (Visual Document Retrieval Benchmark):}
-    \begin{itemize}
-        \item \textbf{Description:} A comprehensive suite containing visual page documents (e.g., ArxivQA, DocVQA, InfoVQA, Shift15, TatDQA) covering layout, charts, infographics, and mathematical representations.
-        \item \textbf{Role in Pipeline:} We use subsets of ViDoRe (specifically ArxivQA and TatDQA) to pre-train or fine-tune the student's basic visual-textual mapping offline. Standard test sets are used to verify that the student retains strong generic page-retrieval performance without experiencing catastrophic forgetting of layout cues.
-    \end{itemize}
-    
-    \item \textbf{M-BEIR (Multimodal BEIR):}
-    \begin{itemize}
-        \item \textbf{Description:} A large, unified multimodal retrieval benchmark featuring diverse retrieval tasks such as image-to-text, text-to-image, and visual document matching.
-        \item \textbf{Role in Pipeline:} Provides a high-quality corpus for out-of-domain (OOD) generalization testing to evaluate if the distilled V-SPLADE model can generalize reasoning capabilities to unseen retrieval distributions.
-    \end{itemize}
+    \item **\texttt{BeIR/fiqa} (Finance):** $500$ queries containing professional financial discussion, transaction details, and corporate news, targeting the held-out \texttt{law} and \texttt{quant} test splits.
+    \item **\texttt{BeIR/dbpedia-entity} (General Web/Wikipedia):** $500$ structured entity queries covering history, geography, arts, and science, providing high general-knowledge vocabulary coverage.
+    \item **\texttt{BeIR/scidocs} (Science/Bio):** $500$ academic citation queries spanning scientific, biomedical, and technical abstracts, targeting the held-out \texttt{physics} and \texttt{biology} splits.
 \end{enumerate}
+
+\subsubsection{Why Visual Datasets Were Replaced in Training}
+Although our student model is evaluated on visual document images in production, **the student's document encoder and Query LUT operate entirely in the text domain during training**. During indexing, the visual layouts are pre-parsed using frozen document layout models, mapping the visual content to textual BPE tokens.
+Switching from synthetic visual datasets (like \texttt{syntheticDocQA}) to standard text-rich BEIR datasets provided two critical advantages:
+\begin{itemize}
+    \item **Continuous Relevance Gradients:** Synthetic visual datasets lack document text, providing only binary Q\&A pairs. This causes the teacher LLM to assign flat binary scores (e.g., $0.0$ or $5.0$). Text-rich BEIR datasets contain full-length documents, allowing the teacher to assign granular relevance scores.
+    \item **Namespace Collision Mitigation:** Query IDs are namespaced (e.g., prefixed as \texttt{beir\_fiqa\_test\_q}) to prevent key conflicts with existing targets.
+\end{itemize}
 
 \section{Empirical Results and Analysis}
 We evaluated the distilled V-SPLADE student model (incorporating Path A LUT-only training and pre-tokenization query stopping) across the 9 held-out test splits of the MM-BRIGHT benchmark.
