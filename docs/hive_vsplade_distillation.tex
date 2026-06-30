@@ -240,7 +240,38 @@ To develop and evaluate the reasoning capabilities of the distilled student mode
     \end{itemize}
 \end{enumerate}
 
----
+\section{Empirical Results and Analysis}
+We evaluated the distilled V-SPLADE student model (incorporating Path A LUT-only training and pre-tokenization query stopping) across the 9 held-out test splits of the MM-BRIGHT benchmark.
+
+\subsection{Zero-Shot Retrieval Performance}
+Table~\ref{tab:zero_shot_results} presents the MRR@10 and NDCG@10 scores achieved by the model on unseen test splits.
+
+\begin{table}[htbp]
+\centering
+\caption{Zero-Shot Cross-Domain Evaluation Metrics on MM-BRIGHT.}
+\label{tab:zero_shot_results}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test Split} & \textbf{Corpus Size (Pages)} & \textbf{MRR@10} & \textbf{NDCG@10} \\
+\midrule
+academia & 60,050 & 0.2359 & 0.1726 \\
+law & $\sim$10,000 & 0.2318 & 0.1866 \\
+psychology & $\sim$15,000 & 0.0981 & 0.0613 \\
+philosophy & $\sim$12,000 & 0.0972 & 0.0672 \\
+robotics & $\sim$8,000 & 0.0861 & 0.0727 \\
+physics & 338,291 & 0.0535 & 0.0433 \\
+quant & $\sim$5,000 & 0.0324 & 0.0272 \\
+biology & 89,435 & 0.0202 & 0.0218 \\
+quantumcomputing & $\sim$4,000 & 0.0019 & 0.0016 \\
+\midrule
+\textbf{AVERAGE} & \textbf{$\sim$60,000 (avg)} & \textbf{0.0952} & \textbf{0.0727} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Finding: Vocabulary Coverage and Scaling Limitations}
+The student model achieves highly respectable zero-shot transfer on text-rich structures like \texttt{academia} (MRR: 0.2359) and \texttt{law} (MRR: 0.2318). However, it struggles on highly specialized domains like \texttt{quantumcomputing} (MRR: 0.0019). 
+This behavior highlights the vocabulary-coverage bottleneck of Query LUTs trained on small datasets (1,041 training queries). Without experiencing legal or mathematical term alignment during the 20-domain training phase, the LUT falls back to default, untrained weights, reducing retrieval effectiveness on these OOD terms.
 
 \section{Research Challenges and Proposed Mitigations}
 
