@@ -319,6 +319,29 @@ The results show a systematic, model-wide performance lift after scaling the dis
     \item \textbf{Generalization Strength:} Average zero-shot OOD retrieval accuracy across all splits improved from $0.0952$ to $0.1088$ in MRR@10 ($+14.3\%$) and from $0.0727$ to $0.0836$ in NDCG@10 ($+15.0\%$).
 \end{itemize}
 
+\section{Next Steps: Hybrid Sparse-Dense Retrieval}
+To bridge the absolute performance gap and reach paper-quality visual retrieval metrics, we outline a hybrid sparse-dense retrieval framework combining our distilled V-SPLADE sparse index with a standard dense model (CLIP) indexed via a fast vector database (FAISS).
+
+\subsection{Dense-Sparse Hybrid Architecture}
+The system retrieves document candidates via two parallel channels:
+\begin{enumerate}
+    \item \textbf{Sparse Channel:} Evaluates queries using the Query LUT lookup and executes an exact keyword match on the inverted document index:
+    \begin{equation}
+    S_{\text{sparse}}(q, d) = w_q^T w_p
+    \end{equation}
+    \item \textbf{Dense Channel:} Embeds the query text and visual document pages into a shared dense space utilizing a pre-trained CLIP model ($\text{CLIP-ViT-B/32}$). Visual pages are indexed in a flat inner-product FAISS index:
+    \begin{equation}
+    S_{\text{dense}}(q, d) = \cos(e_q, e_p)
+    \end{equation}
+\end{enumerate}
+
+\subsection{Rank Fusion and Normalization}
+The two lists of top candidates are fused using a parameter $\beta \in [0, 1]$ to balance the lexical precision of V-SPLADE with the zero-shot semantic matching of CLIP:
+\begin{equation}
+S_{\text{hybrid}}(q, d) = (1 - \beta) \cdot \bar{S}_{\text{sparse}}(q, d) + \beta \cdot \bar{S}_{\text{dense}}(q, d)
+\end{equation}
+where $\bar{S}$ represent min-max normalized matching scores. Alternatively, Reciprocal Rank Fusion (RRF) is utilized to combine list ranks without score scale matching.
+
 \section{Research Challenges and Proposed Mitigations}
 
 \subsection{Encoder Capacity Bottleneck}
