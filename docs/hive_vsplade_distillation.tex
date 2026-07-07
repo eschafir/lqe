@@ -343,7 +343,7 @@ S_{\text{hybrid}}(q, d) = (1 - \beta) \cdot \bar{S}_{\text{sparse}}(q, d) + \bet
 where $\bar{S}$ represent min-max normalized matching scores. Alternatively, Reciprocal Rank Fusion (RRF) is utilized to combine list ranks without score scale matching.
 
 \subsection{Hybrid Zero-Shot Evaluation Results}
-We implemented the hybrid Sparse-Dense pipeline and evaluated it on four distinct MM-BRIGHT test splits, comparing V-SPLADE student retrieval against two dense channels: a visual-caption semantic model (\texttt{openai/clip-vit-base-patch32}) and a dedicated text bi-encoder (\texttt{sentence-transformers/all-MiniLM-L6-v2}) indexed via flat inner-product FAISS vector spaces.
+We implemented the hybrid Sparse-Dense pipeline and evaluated it on four distinct MM-BRIGHT test splits, comparing V-SPLADE student retrieval against three dense channels: a visual-caption semantic model (\texttt{openai/clip-vit-base-patch32}), a lightweight text bi-encoder (\texttt{sentence-transformers/all-MiniLM-L6-v2}), and a state-of-the-art text retriever (\texttt{BAAI/bge-small-en-v1.5}), indexed via flat inner-product FAISS vector spaces.
 
 Table~\ref{tab:hybrid_results} presents the results using $\beta=0.4$ for score fusion.
 
@@ -351,24 +351,24 @@ Table~\ref{tab:hybrid_results} presents the results using $\beta=0.4$ for score 
 \centering
 \caption{Comparison of Hybrid Sparse-Dense Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT using $\beta=0.4$.}
 \label{tab:hybrid_results}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Test Split} & \textbf{Pure Sparse Student} & \textbf{Hybrid (CLIP)} & \textbf{Hybrid (MiniLM)} \\
+\textbf{Test Split} & \textbf{Pure Sparse Student} & \textbf{Hybrid (CLIP)} & \textbf{Hybrid (MiniLM)} & \textbf{Hybrid (BGE)} \\
 \midrule
-law & 0.2565 / 0.2210 & 0.3050 / 0.2829 & \textbf{0.3762} / \textbf{0.3798} \\
-robotics & 0.1078 / 0.1116 & \textbf{0.2014} / 0.1488 & 0.1537 / \textbf{0.1504} \\
-quant & 0.0441 / 0.0263 & \textbf{0.0601} / \textbf{0.0554} & 0.0533 / 0.0376 \\
-quantumcomputing & 0.0136 / 0.0071 & 0.0352 / 0.0251 & \textbf{0.1011} / \textbf{0.0658} \\
+law & 0.2565 / 0.2210 & 0.3050 / 0.2829 & 0.3762 / 0.3798 & \textbf{0.4850} / \textbf{0.4340} \\
+robotics & 0.1078 / 0.1116 & 0.2014 / 0.1488 & 0.1537 / 0.1504 & \textbf{0.2041} / \textbf{0.2061} \\
+quant & 0.0441 / 0.0263 & 0.0601 / 0.0554 & 0.0533 / 0.0376 & \textbf{0.0863} / \textbf{0.0845} \\
+quantumcomputing & 0.0136 / 0.0071 & 0.0352 / 0.0251 & \textbf{0.1011} / 0.0658 & 0.0851 / \textbf{0.0668} \\
 \midrule
-\textbf{AVERAGE} & \textbf{0.1056} / \textbf{0.0915} & \textbf{0.1504} / \textbf{0.1281} & \textbf{0.1710} / \textbf{0.1584} \\
+\textbf{AVERAGE} & \textbf{0.1056} / \textbf{0.0915} & \textbf{0.1504} / \textbf{0.1281} & \textbf{0.1710} / \textbf{0.1584} & \textbf{0.2151} / \textbf{0.1978} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The hybrid pipeline shows a model-wide performance lift. Fusing V-SPLADE with the lightweight \texttt{all-MiniLM-L6-v2} text bi-encoder yields a $+61.9\%$ relative boost in average MRR@10 ($0.1710$ vs $0.1056$).
+The hybrid pipeline with \texttt{BAAI/bge-small-en-v1.5} achieves an outstanding overall average MRR@10 of \textbf{0.2151} (representing a \textbf{+103.7\% relative boost} over the pure sparse student baseline).
 \begin{itemize}
-    \item \textbf{Text-Linguistic Dominance:} The dedicated text bi-encoder (\texttt{MiniLM}) excels in domain-jargon heavy files, achieving $0.3762$ MRR@10 on \texttt{law} and $0.1011$ MRR@10 on \texttt{quantumcomputing} (a $+643\%$ relative rise over baseline).
-    \item \textbf{Visual-Spatial Prior:} The image-text pre-trained CLIP model text encoder outperforms \texttt{MiniLM} on physical and visual-structural splits like \texttt{robotics} ($0.2014$ MRR@10) and \texttt{quant} ($0.0601$ MRR@10), indicating that image-contrastive pre-training forces text representation spaces to align better with concrete spatial assets.
+    \item \textbf{Law Domain Breakthrough:} On the \texttt{law} split, the BGE hybrid pipeline reaches a highly publishable \textbf{0.4850} MRR@10, demonstrating the effectiveness of combining lexical precision with deep, retrieval-tuned text representations.
+    \item \textbf{Robustness Across Domains:} Unlike \texttt{MiniLM} and \texttt{CLIP}, which showed split-specific weaknesses, BGE-small maintains high performance across all splits, outperforming both models in three out of four splits. The only exception is \texttt{quantumcomputing}, where \texttt{MiniLM} slightly leads in MRR@10 ($0.1011$ vs $0.0851$) while BGE matches or leads in NDCG@10 ($0.0668$).
 \end{itemize}
 
 \section{Research Challenges and Proposed Mitigations}
