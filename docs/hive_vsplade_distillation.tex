@@ -342,6 +342,35 @@ S_{\text{hybrid}}(q, d) = (1 - \beta) \cdot \bar{S}_{\text{sparse}}(q, d) + \bet
 \end{equation}
 where $\bar{S}$ represent min-max normalized matching scores. Alternatively, Reciprocal Rank Fusion (RRF) is utilized to combine list ranks without score scale matching.
 
+\subsection{Hybrid Zero-Shot Evaluation Results}
+We implemented the hybrid Sparse-Dense pipeline and evaluated it on four distinct MM-BRIGHT test splits, comparing V-SPLADE student retrieval against two dense channels: a visual-caption semantic model (\texttt{openai/clip-vit-base-patch32}) and a dedicated text bi-encoder (\texttt{sentence-transformers/all-MiniLM-L6-v2}) indexed via flat inner-product FAISS vector spaces.
+
+Table~\ref{tab:hybrid_results} presents the results using $\beta=0.4$ for score fusion.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of Hybrid Sparse-Dense Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT using $\beta=0.4$.}
+\label{tab:hybrid_results}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test Split} & \textbf{Pure Sparse Student} & \textbf{Hybrid (CLIP)} & \textbf{Hybrid (MiniLM)} \\
+\midrule
+law & 0.2565 / 0.2210 & 0.3050 / 0.2829 & \textbf{0.3762} / \textbf{0.3798} \\
+robotics & 0.1078 / 0.1116 & \textbf{0.2014} / 0.1488 & 0.1537 / \textbf{0.1504} \\
+quant & 0.0441 / 0.0263 & \textbf{0.0601} / \textbf{0.0554} & 0.0533 / 0.0376 \\
+quantumcomputing & 0.0136 / 0.0071 & 0.0352 / 0.0251 & \textbf{0.1011} / \textbf{0.0658} \\
+\midrule
+\textbf{AVERAGE} & \textbf{0.1056} / \textbf{0.0915} & \textbf{0.1504} / \textbf{0.1281} & \textbf{0.1710} / \textbf{0.1584} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The hybrid pipeline shows a model-wide performance lift. Fusing V-SPLADE with the lightweight \texttt{all-MiniLM-L6-v2} text bi-encoder yields a $+61.9\%$ relative boost in average MRR@10 ($0.1710$ vs $0.1056$).
+\begin{itemize}
+    \item \textbf{Text-Linguistic Dominance:} The dedicated text bi-encoder (\texttt{MiniLM}) excels in domain-jargon heavy files, achieving $0.3762$ MRR@10 on \texttt{law} and $0.1011$ MRR@10 on \texttt{quantumcomputing} (a $+643\%$ relative rise over baseline).
+    \item \textbf{Visual-Spatial Prior:} The image-text pre-trained CLIP model text encoder outperforms \texttt{MiniLM} on physical and visual-structural splits like \texttt{robotics} ($0.2014$ MRR@10) and \texttt{quant} ($0.0601$ MRR@10), indicating that image-contrastive pre-training forces text representation spaces to align better with concrete spatial assets.
+\end{itemize}
+
 \section{Research Challenges and Proposed Mitigations}
 
 \subsection{Encoder Capacity Bottleneck}
