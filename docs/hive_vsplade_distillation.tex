@@ -438,6 +438,35 @@ The hyperparameter sweep reveals three critical scientific findings:
     \item \textbf{Dense-Semantic Fallback (Quantum Computing):} Conversely, the \texttt{quantumcomputing} split peaks at $\beta = 0.9$ ($0.1639$ MRR@10). This indicates that the severe out-of-vocabulary terms (e.g. quantum gate symbols) present in this split are virtually invisible to the Query LUT, requiring the dense model to handle the majority of the retrieval logic.
 \end{itemize}
 
+\subsection{Late-Stage Cross-Encoder Reranking}
+Finally, we integrated a late-stage Cross-Encoder reranker (\texttt{BAAI/bge-reranker-base}) on top of our hybrid V-SPLADE + BGE-small retrieval pipeline ($\beta=0.6$, candidate pool size $N=30$). 
+
+Table~\ref{tab:rerank_results} presents the comparative evaluation.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of Zero-Shot Cross-Domain Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT between the Hybrid baseline ($\beta=0.6$) and the Hybrid + Reranker pipeline.}
+\label{tab:rerank_results}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test Split} & \textbf{Hybrid Baseline ($\beta=0.6$)} & \textbf{Hybrid + Reranker} & \textbf{Relative MRR Change} \\
+\midrule
+law & \textbf{0.4456} / \textbf{0.3856} & 0.2335 / 0.2032 & -47.6\% \\
+robotics & 0.2469 / 0.2296 & \textbf{0.2904} / \textbf{0.2489} & +17.6\% \\
+quant & 0.0946 / 0.1227 & \textbf{0.1895} / \textbf{0.1714} & +100.3\% \\
+quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1356} / \textbf{0.0972} & +25.8\% \\
+\midrule
+\textbf{AVERAGE} & \textbf{0.2237} / \textbf{0.2065} & 0.2123 / 0.1802 & -5.1\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The reranking results reveal a critical domain-specific dichotomy:
+\begin{itemize}
+    \item \textbf{Significant Scientific Gains:} On technical and quantitative splits, the Cross-Encoder provides a massive retrieval boost. In the mathematical \texttt{quant} split, MRR@10 **doubled** ($0.1895$ vs $0.0946$), while \texttt{robotics} and \texttt{quantumcomputing} saw $+17.6\%$ and $+25.8\%$ relative MRR improvements, respectively.
+    \item \textbf{The Legal Context Limitation:} On the \texttt{law} split, reranking caused a catastrophic MRR@10 decrease (dropping from $0.4456$ to $0.2335$). Legal document retrieval relies heavily on exact, hard-constraint keyword references (such as specific code subsection numbers). The general-domain Cross-Encoder, pre-trained on semantic coherence, downweights these structural token sequences in favor of general topic flow, thereby displacing gold document targets.
+\end{itemize}
+
 \section{Research Challenges and Proposed Mitigations}
 
 \subsection{Encoder Capacity Bottleneck}
