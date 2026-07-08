@@ -283,6 +283,26 @@ Switching from synthetic visual datasets (like \texttt{syntheticDocQA}) to stand
 \section{Empirical Results and Analysis}
 We evaluated the distilled V-SPLADE student model (incorporating Path A LUT-only training and pre-tokenization query stopping) across the 9 held-out test splits of the MM-BRIGHT benchmark.
 
+\subsection{Evaluation Metrics}
+To evaluate the zero-shot retrieval quality, we utilize two standard information retrieval metrics:
+\begin{enumerate}
+    \item \textbf{Mean Reciprocal Rank (MRR@K):} MRR measures the speed at which the search engine retrieves the first correct (gold) document. It is defined as the average of the reciprocal ranks of the first relevant document across the set of queries $Q$:
+    \begin{equation}
+    \text{MRR} = \frac{1}{|Q|} \sum_{q \in Q} \frac{1}{\text{rank}_q}
+    \end{equation}
+    where $\text{rank}_q$ is the position of the first relevant document for query $q$ (assigning a score of $0$ if no relevant document is retrieved in the top $K$ positions).
+    
+    \item \textbf{Normalized Discounted Cumulative Gain (NDCG@K):} NDCG evaluates the quality of the entire ranked candidate list. It accumulates relevance gains ($\text{rel}_i$) from top to bottom, discounting them logarithmically to model user decay in scanning lower ranks. Discounted Cumulative Gain (DCG) at rank $K$ is defined as:
+    \begin{equation}
+    \text{DCG}@K = \sum_{i=1}^K \frac{\text{rel}_i}{\log_2(i + 1)}
+    \end{equation}
+    To make scores comparable across queries, the actual DCG is normalized by the Ideal DCG (IDCG), which represents the perfect rank ordering of all relevant document targets:
+    \begin{equation}
+    \text{NDCG}@K = \frac{\text{DCG}@K}{\text{IDCG}@K}
+    \end{equation}
+    Yielding a value in $[0.0, 1.0]$ where $1.0$ indicates perfect ranking.
+\end{enumerate}
+
 \subsection{Zero-Shot Retrieval Performance}
 Table~\ref{tab:zero_shot_results} presents the MRR@10 and NDCG@10 scores achieved by the model on unseen test splits.
 
