@@ -378,21 +378,21 @@ Table~\ref{tab:hybrid_results} presents the comparative evaluation at the optima
 \centering
 \caption{Comparison of Zero-Shot Cross-Domain Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT comparing the Pure Sparse Student baseline against the Hybrid Sparse-Dense pipeline using BAAI/bge-small-en-v1.5 at the optimal $\beta=0.6$.}
 \label{tab:hybrid_results}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Test Split} & \textbf{Pure Sparse Student} & \textbf{Hybrid (BGE, $\beta=0.6$)} & \textbf{Relative MRR Change} \\
+\textbf{Test Split} & \textbf{Pure Sparse Student} & \textbf{Hybrid (BGE, $\beta=0.6$)} & \textbf{Rel. MRR} & \textbf{Rel. NDCG} \\
 \midrule
-academia & 0.2737 / 0.1766 & \textbf{0.3981} / \textbf{0.2899} & +45.4\% \\
-law & 0.2565 / 0.2210 & \textbf{0.4456} / \textbf{0.3856} & +73.7\% \\
-psychology & 0.1030 / 0.0647 & \textbf{0.2732} / \textbf{0.2004} & +165.2\% \\
-philosophy & 0.0949 / 0.0687 & \textbf{0.2097} / \textbf{0.1831} & +121.0\% \\
-robotics & 0.1078 / 0.1116 & \textbf{0.2469} / \textbf{0.2296} & +129.0\% \\
-physics & 0.0577 / 0.0495 & \textbf{0.1787} / \textbf{0.1209} & +209.7\% \\
-quant & 0.0441 / 0.0263 & \textbf{0.0946} / \textbf{0.1227} & +114.5\% \\
-biology & 0.0281 / 0.0268 & \textbf{0.0926} / \textbf{0.1145} & +229.5\% \\
-quantumcomputing & 0.0136 / 0.0071 & \textbf{0.1078} / \textbf{0.0881} & +692.6\% \\
+academia & 0.2737 / 0.1766 & \textbf{0.3981} / \textbf{0.2899} & +45.4\% & +64.2\% \\
+law & 0.2565 / 0.2210 & \textbf{0.4456} / \textbf{0.3856} & +73.7\% & +74.5\% \\
+psychology & 0.1030 / 0.0647 & \textbf{0.2732} / \textbf{0.2004} & +165.2\% & +209.7\% \\
+philosophy & 0.0949 / 0.0687 & \textbf{0.2097} / \textbf{0.1831} & +121.0\% & +166.5\% \\
+robotics & 0.1078 / 0.1116 & \textbf{0.2469} / \textbf{0.2296} & +129.0\% & +105.7\% \\
+physics & 0.0577 / 0.0495 & \textbf{0.1787} / \textbf{0.1209} & +209.7\% & +144.2\% \\
+quant & 0.0441 / 0.0263 & \textbf{0.0946} / \textbf{0.1227} & +114.5\% & +366.5\% \\
+biology & 0.0281 / 0.0268 & \textbf{0.0926} / \textbf{0.1145} & +229.5\% & +327.2\% \\
+quantumcomputing & 0.0136 / 0.0071 & \textbf{0.1078} / \textbf{0.0881} & +692.6\% & +1140.8\% \\
 \midrule
-\textbf{AVERAGE} & \textbf{0.1088} / \textbf{0.0836} & \textbf{0.2275} / \textbf{0.2039} & \textbf{+109.1\%} \\
+\textbf{AVERAGE} & \textbf{0.1088} / \textbf{0.0836} & \textbf{0.2275} / \textbf{0.2039} & \textbf{+109.1\%} & \textbf{+143.9\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -447,16 +447,16 @@ Table~\ref{tab:bge_large_results} presents the comparative evaluation results.
 \centering
 \caption{Comparison of Zero-Shot Cross-Domain Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT between the Hybrid pipelines using BGE-small vs. BGE-large at the optimal fusion weight $\beta=0.6$.}
 \label{tab:bge_large_results}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Test Split} & \textbf{Hybrid (BGE-small, $\beta=0.6$)} & \textbf{Hybrid (BGE-large, $\beta=0.6$)} & \textbf{Relative MRR Change} \\
+\textbf{Test Split} & \textbf{Hybrid (BGE-small, $\beta=0.6$)} & \textbf{Hybrid (BGE-large, $\beta=0.6$)} & \textbf{Rel. MRR} & \textbf{Rel. NDCG} \\
 \midrule
-law & \textbf{0.4456} / 0.3856 & 0.3943 / \textbf{0.4292} & -11.5\% \\
-robotics & \textbf{0.2469} / 0.2296 & 0.2417 / \textbf{0.2348} & -2.1\% \\
-quant & 0.0946 / \textbf{0.1227} & \textbf{0.1328} / 0.1106 & +40.4\% \\
-quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1405} / \textbf{0.1071} & +30.3\% \\
+law & \textbf{0.4456} / 0.3856 & 0.3943 / \textbf{0.4292} & -11.5\% & +11.3\% \\
+robotics & \textbf{0.2469} / 0.2296 & 0.2417 / \textbf{0.2348} & -2.1\% & +2.3\% \\
+quant & 0.0946 / \textbf{0.1227} & \textbf{0.1328} / 0.1106 & +40.4\% & -9.9\% \\
+quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1405} / \textbf{0.1071} & +30.3\% & +21.6\% \\
 \midrule
-\textbf{AVERAGE} & \textbf{0.2237} / 0.2065 & \textbf{0.2273} / \textbf{0.2204} & \textbf{+1.6\%} \\
+\textbf{AVERAGE} & \textbf{0.2237} / \textbf{0.2065} & \textbf{0.2273} / \textbf{0.2204} & \textbf{+1.6\%} & \textbf{+6.7\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
