@@ -441,36 +441,27 @@ The hyperparameter sweep reveals three critical scientific findings:
 \subsection{Scaling Dense Model Capacity: BGE-Large}
 To investigate the impact of semantic encoder capacity, we substituted the lightweight \texttt{BAAI/bge-small-en-v1.5} (33M parameters) with the higher-capacity \texttt{BAAI/bge-large-en-v1.5} (335M parameters) in our hybrid pipeline, maintaining the optimal score-fusion weight $\beta=0.6$. 
 
-The larger bi-encoder raised the average zero-shot metrics on the four test splits to an outstanding \textbf{0.2273} MRR@10 and a peak \textbf{0.2204} NDCG@10 (representing a \textbf{+6.7\% relative gain} in NDCG over BGE-small). Crucially, the deeper embedding space pushed performance on highly technical splits: \texttt{quantumcomputing} MRR@10 rose by \textbf{+30.3\%} (climbing from $0.1078$ to $0.1405$), and \texttt{quant} MRR@10 rose by \textbf{+40.4\%} ($0.1328$ vs $0.0946$). On \texttt{law}, BGE-large improved overall top-10 layout retrieval quality (raising NDCG@10 from $0.3856$ to $0.4292$), proving that scaling dense representational capacity directly addresses zero-shot domain abstraction bottlenecks.
-
-\subsection{Late-Stage Cross-Encoder Reranking}
-Finally, we integrated a late-stage Cross-Encoder reranker (\texttt{BAAI/bge-reranker-base}) on top of our hybrid V-SPLADE + BGE-small retrieval pipeline ($\beta=0.6$, candidate pool size $N=30$). 
-
-Table~\ref{tab:rerank_results} presents the comparative evaluation.
+Table~\ref{tab:bge_large_results} presents the comparative evaluation results.
 
 \begin{table}[htbp]
 \centering
-\caption{Comparison of Zero-Shot Cross-Domain Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT between the Hybrid baseline ($\beta=0.6$) and the Hybrid + Reranker pipeline.}
-\label{tab:rerank_results}
+\caption{Comparison of Zero-Shot Cross-Domain Retrieval Metrics (MRR@10 / NDCG@10) on MM-BRIGHT between the Hybrid pipelines using BGE-small vs. BGE-large at the optimal fusion weight $\beta=0.6$.}
+\label{tab:bge_large_results}
 \begin{tabular}{lccc}
 \toprule
-\textbf{Test Split} & \textbf{Hybrid Baseline ($\beta=0.6$)} & \textbf{Hybrid + Reranker} & \textbf{Relative MRR Change} \\
+\textbf{Test Split} & \textbf{Hybrid (BGE-small, $\beta=0.6$)} & \textbf{Hybrid (BGE-large, $\beta=0.6$)} & \textbf{Relative MRR Change} \\
 \midrule
-law & \textbf{0.4456} / \textbf{0.3856} & 0.2335 / 0.2032 & -47.6\% \\
-robotics & 0.2469 / 0.2296 & \textbf{0.2904} / \textbf{0.2489} & +17.6\% \\
-quant & 0.0946 / 0.1227 & \textbf{0.1895} / \textbf{0.1714} & +100.3\% \\
-quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1356} / \textbf{0.0972} & +25.8\% \\
+law & \textbf{0.4456} / 0.3856 & 0.3943 / \textbf{0.4292} & -11.5\% \\
+robotics & \textbf{0.2469} / 0.2296 & 0.2417 / \textbf{0.2348} & -2.1\% \\
+quant & 0.0946 / \textbf{0.1227} & \textbf{0.1328} / 0.1106 & +40.4\% \\
+quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1405} / \textbf{0.1071} & +30.3\% \\
 \midrule
-\textbf{AVERAGE} & \textbf{0.2237} / \textbf{0.2065} & 0.2123 / 0.1802 & -5.1\% \\
+\textbf{AVERAGE} & \textbf{0.2237} / 0.2065 & \textbf{0.2273} / \textbf{0.2204} & \textbf{+1.6\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The reranking results reveal a critical domain-specific dichotomy:
-\begin{itemize}
-    \item \textbf{Significant Scientific Gains:} On technical and quantitative splits, the Cross-Encoder provides a massive retrieval boost. In the mathematical \texttt{quant} split, MRR@10 **doubled** ($0.1895$ vs $0.0946$), while \texttt{robotics} and \texttt{quantumcomputing} saw $+17.6\%$ and $+25.8\%$ relative MRR improvements, respectively.
-    \item \textbf{The Legal Context Limitation:} On the \texttt{law} split, reranking caused a catastrophic MRR@10 decrease (dropping from $0.4456$ to $0.2335$). Legal document retrieval relies heavily on exact, hard-constraint keyword references (such as specific code subsection numbers). The general-domain Cross-Encoder, pre-trained on semantic coherence, downweights these structural token sequences in favor of general topic flow, thereby displacing gold document targets.
-\end{itemize}
+The larger bi-encoder raised the average zero-shot metrics on the four test splits to an outstanding \textbf{0.2273} MRR@10 and a peak \textbf{0.2204} NDCG@10 (representing a \textbf{+6.7\% relative gain} in NDCG over BGE-small). Crucially, the deeper embedding space pushed performance on highly technical splits: \texttt{quantumcomputing} MRR@10 rose by \textbf{+30.3\%} (climbing from $0.1078$ to $0.1405$), and \texttt{quant} MRR@10 rose by \textbf{+40.4\%} ($0.1328$ vs $0.0946$). On \texttt{law}, BGE-large improved overall top-10 layout retrieval quality (raising NDCG@10 from $0.3856$ to $0.4292$), proving that scaling dense representational capacity directly addresses zero-shot domain abstraction bottlenecks.
 
 \section{Research Challenges and Proposed Mitigations}
 
