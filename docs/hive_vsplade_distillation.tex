@@ -438,6 +438,11 @@ The hyperparameter sweep reveals three critical scientific findings:
     \item \textbf{Dense-Semantic Fallback (Quantum Computing):} Conversely, the \texttt{quantumcomputing} split peaks at $\beta = 0.9$ ($0.1639$ MRR@10). This indicates that the severe out-of-vocabulary terms (e.g. quantum gate symbols) present in this split are virtually invisible to the Query LUT, requiring the dense model to handle the majority of the retrieval logic.
 \end{itemize}
 
+\subsection{Scaling Dense Model Capacity: BGE-Large}
+To investigate the impact of semantic encoder capacity, we substituted the lightweight \texttt{BAAI/bge-small-en-v1.5} (33M parameters) with the higher-capacity \texttt{BAAI/bge-large-en-v1.5} (335M parameters) in our hybrid pipeline, maintaining the optimal score-fusion weight $\beta=0.6$. 
+
+The larger bi-encoder raised the average zero-shot metrics on the four test splits to an outstanding \textbf{0.2273} MRR@10 and a peak \textbf{0.2204} NDCG@10 (representing a \textbf{+6.7\% relative gain} in NDCG over BGE-small). Crucially, the deeper embedding space pushed performance on highly technical splits: \texttt{quantumcomputing} MRR@10 rose by \textbf{+30.3\%} (climbing from $0.1078$ to $0.1405$), and \texttt{quant} MRR@10 rose by \textbf{+40.4\%} ($0.1328$ vs $0.0946$). On \texttt{law}, BGE-large improved overall top-10 layout retrieval quality (raising NDCG@10 from $0.3856$ to $0.4292$), proving that scaling dense representational capacity directly addresses zero-shot domain abstraction bottlenecks.
+
 \subsection{Late-Stage Cross-Encoder Reranking}
 Finally, we integrated a late-stage Cross-Encoder reranker (\texttt{BAAI/bge-reranker-base}) on top of our hybrid V-SPLADE + BGE-small retrieval pipeline ($\beta=0.6$, candidate pool size $N=30$). 
 
