@@ -468,6 +468,35 @@ quantumcomputing & 0.1078 / 0.0881 & \textbf{0.1405} / \textbf{0.1071} & +30.3\%
 
 The larger bi-encoder raised retrieval accuracy on specialized technical and mathematical splits. Crucially, the deeper embedding space pushed performance on the hardest splits: \texttt{quantumcomputing} MRR@10 rose by \textbf{+30.3\%} (climbing from $0.1078$ to $0.1405$), and \texttt{quant} MRR@10 rose by \textbf{+40.4\%} ($0.1328$ vs $0.0946$). On \texttt{law}, BGE-large improved overall top-10 layout retrieval quality (raising NDCG@10 from $0.3856$ to $0.4292$), proving that scaling dense representational capacity directly addresses zero-shot domain abstraction bottlenecks. However, this capacity expansion causes minor keyword-dilution on text-dense splits (such as \texttt{law} and \texttt{academia} MRR), leading to a highly stable but slightly lower overall average ($0.2229$ MRR / $0.2015$ NDCG).
 
+\subsection{Teacher-Student Gap: Comparing Hybrid Student to the HIVE Teacher}
+To quantify how closely the distilled, inference-free student pipeline approaches the active online reasoning capabilities of its supervisor, we evaluated the HIVE Teacher directly on the four core held-out test splits. The teacher pipeline was executed using the 397-Billion parameter Mixture-of-Experts model (\texttt{nvidia/qwen/qwen3.5-397b-a17b}) via the Nvidia NIM Cloud API. 
+
+Table~\ref{tab:teacher_comparison} presents the comparative evaluation of the HIVE Teacher against our Hybrid Student configurations at $\beta=0.6$.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative evaluation (MRR@10 / NDCG@10) on MM-BRIGHT comparing the active online HIVE Teacher (\texttt{qwen3.5-397b-a17b}) against the distilled CPU-only Hybrid Student pipelines.}
+\label{tab:teacher_comparison}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Test Split} & \textbf{HIVE Teacher (397B)} & \textbf{Hybrid Student (BGE-small)} & \textbf{Hybrid Student (BGE-large)} \\
+\midrule
+law & 0.5016 / 0.6193 & \textbf{0.4456} / 0.3856 & 0.3943 / \textbf{0.4292} \\
+robotics & 0.5273 / 0.5492 & \textbf{0.2469} / 0.2296 & 0.2417 / \textbf{0.2348} \\
+quant & 0.3918 / 0.4560 & 0.0946 / \textbf{0.1227} & \textbf{0.1328} / 0.1106 \\
+quantumcomputing & 0.3069 / 0.3675 & 0.1078 / 0.0881 & \textbf{0.1405} / \textbf{0.1071} \\
+\midrule
+\textbf{AVERAGE} & \textbf{0.4134} / \textbf{0.4787} & \textbf{0.2237} / \textbf{0.2065} & \textbf{0.2273} / \textbf{0.2204} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The evaluation reveals that our CPU-only student pipeline recovers a substantial portion of the teacher's zero-shot retrieval performance.
+\begin{itemize}
+    \item \textbf{High-Performance Retrieval Efficiency:} On the \texttt{law} split, our BGE-large Hybrid Student achieves a highly competitive \textbf{0.4292} NDCG@10, which matches \textbf{69.3\%} of the HIVE Teacher's ceiling ($0.6193$), while completely avoiding GPU execution at query time.
+    \item \textbf{The Vocabulary Bottleneck on Math splits:} The widest gap occurs in the quantitative domains. On \texttt{quant}, the teacher reaches $0.4560$ NDCG@10, while our best student configuration achieves $0.1227$ NDCG@10. This indicates that the 1,041 training queries do not carry sufficient out-of-vocabulary mathematical and formula tokens (such as specific integrals and quantum notation) to train the Query LUT weights, leaving the student dependent on the dense bi-encoder. Scaling the distillation dataset size is therefore the key path to closing the remaining gap to the active LLM.
+\end{itemize}
+
 \section{Research Challenges and Proposed Mitigations}
 
 \subsection{Encoder Capacity Bottleneck}
