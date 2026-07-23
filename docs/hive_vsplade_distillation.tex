@@ -350,20 +350,45 @@ The results show a systematic, model-wide performance lift after scaling the dis
 To bridge the absolute performance gap and reach paper-quality visual retrieval metrics, we outline a hybrid sparse-dense retrieval framework combining our distilled V-SPLADE sparse index with a standard dense model (CLIP) indexed via a fast vector database (FAISS).
 
 \subsection{Dense-Sparse Hybrid Architecture}
-The system retrieves document candidates via two parallel channels:
+The system retrieves document candidates via two parallel channels operating in a hybrid retrieval regime:
 \begin{enumerate}
     \item \textbf{Sparse Channel:} Evaluates queries using the Query LUT lookup and executes an exact keyword match on the inverted document index:
     \begin{equation}
     S_{\text{sparse}}(q, d) = w_q^T w_p
     \end{equation}
-    \item \textbf{Dense Channel:} Embeds the query text and visual document pages into a shared dense space utilizing a pre-trained CLIP model ($\text{CLIP-ViT-B/32}$). Visual pages are indexed in a flat inner-product FAISS index:
+    To bridge the out-of-vocabulary (OOV) vocabulary gap on zero-shot OOD domains, we introduce a CPU-based \textbf{Pseudo-Relevance Feedback (PRF)} expansion loop (detailed in Section~\ref{subsec:prf}).
+    \item \textbf{Dense Channel:} Embeds the query and document into a shared vector space. The architecture supports two modes:
+    \begin{itemize}
+        \item \textbf{Bi-Encoder Mode:} Utilizes a pre-trained dense retriever (e.g., \texttt{BAAI/bge-large-en-v1.5}) to encode queries and documents into single pooled vectors, indexed in a flat inner-product FAISS space:
+        \begin{equation}
+        S_{\text{dense, bi}}(q, d) = \cos(e_q, e_d)
+        \end{equation}
+        \item \textbf{Late-Interaction Mode:} Utilizes a multi-vector late-interaction model (e.g., \texttt{colbert-ir/colbertv2.0} or ColPali) to preserve token-level alignment and layout geometry. The similarity is computed using the MaxSim operator:
+        \begin{equation}
+        S_{\text{dense, MaxSim}}(q, d) = \sum_{i=1}^{L_q} \max_{j=1}^{L_d} (e_{q, i} \cdot e_{d, j})
+        \end{equation}
+        where $e_{q, i}$ and $e_{d, j}$ are the 128-dimensional projection-aligned token embeddings of query token $i$ and document token $j$ respectively.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Pseudo-Relevance Feedback (PRF) Expansion}
+\label{subsec:prf}
+Due to the OOD nature of held-out splits, the Query LUT may not contain mappings for unseen domain-specific technical terms. To circumvent this, we implement a two-pass PRF loop:
+\begin{enumerate}
+    \item \textbf{First-Pass Retrieval:} An initial sparse retrieval is run using the original query representation $w_q^{(1)}$ to obtain a candidate pool.
+    \item \textbf{Feedback Vector Synthesis:} We select the top-$K$ document vectors $\{w_{d_1}, \dots, w_{d_K}\}$ from the pool and calculate their average token activation:
     \begin{equation}
-    S_{\text{dense}}(q, d) = \cos(e_q, e_p)
+    w_{q,\text{feedback}} = \frac{1}{K} \sum_{i=1}^{K} w_{d_i}
     \end{equation}
+    \item \textbf{Interpolation and Pruning:} We interpolate the feedback vector with the original query vector using weight $\alpha \in [0, 1]$, and prune the result to the top-$N$ most active tokens to preserve index sparsity:
+    \begin{equation}
+    w_q^{(2)} = \text{Pruning}_{N}\left( (1 - \alpha) \cdot w_q^{(1)} + \alpha \cdot w_{q,\text{feedback}} \right)
+    \end{equation}
+    \item \textbf{Second-Pass Scoring:} The final sparse score is computed as $S_{\text{sparse}}(q, d) = (w_q^{(2)})^T w_d$.
 \end{enumerate}
 
 \subsection{Rank Fusion and Normalization}
-The two lists of top candidates are fused using a parameter $\beta \in [0, 1]$ to balance the lexical precision of V-SPLADE with the zero-shot semantic matching of CLIP:
+The two lists of top candidates are fused using a parameter $\beta \in [0, 1]$ to balance the lexical precision of V-SPLADE with the zero-shot semantic matching of the dense channel:
 \begin{equation}
 S_{\text{hybrid}}(q, d) = (1 - \beta) \cdot \bar{S}_{\text{sparse}}(q, d) + \beta \cdot \bar{S}_{\text{dense}}(q, d)
 \end{equation}
