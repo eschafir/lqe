@@ -286,7 +286,7 @@ The results show a systematic, model-wide performance lift after scaling the dis
 \end{itemize}
 
 \section{Next Steps: Hybrid Sparse-Dense Retrieval}
-To bridge the absolute performance gap and reach paper-quality visual retrieval metrics, we outline a hybrid sparse-dense retrieval framework combining our distilled V-SPLADE sparse index with a standard dense model (CLIP) indexed via a fast vector database (FAISS).
+To bridge the absolute performance gap and reach paper-quality visual retrieval metrics, we outline a hybrid sparse-dense retrieval framework combining our distilled V-SPLADE sparse index with a state-of-the-art dense retriever (e.g., BGE or ColBERT) indexed via a fast vector database (FAISS) or a late-interaction MaxSim buffer.
 
 \subsection{Dense-Sparse Hybrid Architecture}
 The system retrieves document candidates via two parallel channels operating in a hybrid retrieval regime:
