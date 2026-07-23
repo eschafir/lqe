@@ -53,68 +53,7 @@ The architecture of the proposed distillation pipeline is illustrated in Figure~
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[
-    node distance=1.6cm and 1.0cm,
-    block/.style={draw=primary, fill=white, rectangle, minimum width=2.4cm, minimum height=0.8cm, text width=2.2cm, align=center, rounded corners=3pt, line width=1pt, font=\sffamily\small},
-    db/.style={draw=primary, fill=white, cylinder, shape border rotate=90, minimum width=1.5cm, minimum height=1.6cm, align=center, line width=1pt, font=\sffamily\small},
-    lossblock/.style={draw=secondary, fill=white, rectangle, minimum width=2.8cm, minimum height=0.8cm, text width=2.6cm, align=center, rounded corners=3pt, line width=1.2pt, font=\sffamily\small},
-    arrow/.style={thick, ->, >=stealth, draw=primary},
-    darrow/.style={thick, dashed, ->, >=stealth, draw=secondary}
-]
-
-    % --- SECTION 1: TEACHER PIPELINE (TOP ROW) ---
-    \node (img_doc) [block] {Doc text/OCR\\$d$};
-    \node (q_input) [block, left=of img_doc] {Query\\$q$};
-    \node (teach_stage2) [block, right=of img_doc] {LLM Stage 2\\(Compensatory $\hat{q}$)};
-    \node (teach_stage4) [block, right=of teach_stage2] {LLM Stage 4\\(Rationale $R$, Score $S$)};
-    \node (cache) [db, right=of teach_stage4] {Targets Cache\\(\texttt{targets.json})};
-
-    % --- SECTION 2: STUDENT DISTILLATION (MIDDLE ROW) ---
-    \node (lut_opt) [lossblock, below=of q_input, yshift=-0.5cm] {Trainable Query LUT\\$L_{\text{LUT}}$};
-    \node (backbone) [block, below=of img_doc, yshift=-0.5cm] {Frozen Qwen\\Backbone \& Head};
-    \node (loss_calc) [lossblock, below=of teach_stage4, yshift=-0.5cm] {Distillation Losses\\$\mathcal{L}_{\text{lexical}} + \mathcal{L}_{\text{rank}}$};
-
-    % --- SECTION 3: INVERTED INDEX / PRODUCTION (BOTTOM ROW) ---
-    \node (inv_index) [db, below=of backbone, yshift=-0.5cm] {V-SPLADE\\Inverted Index};
-    \node (dense_db) [db, below=of loss_calc, yshift=-0.5cm] {FAISS Vector\\Index (BGE)};
-    \node (dense_enc) [block, below=of cache, yshift=-0.9cm] {BGE Text\\Encoder};
-    \node (serving) [lossblock, below=of dense_db, xshift=-1.6cm, yshift=-0.4cm] {Hybrid Score\\Fusion \& Rank};
-
-    % Paths: Teacher Generation Flow
-    \draw [arrow] (q_input) -- (img_doc);
-    \draw [arrow] (img_doc) -- (teach_stage2);
-    \draw [arrow] (teach_stage2) -- node[midway, above] {$\hat{q}$} (teach_stage4);
-    \draw [arrow] (teach_stage4) -- node[midway, above] {Compile} (cache);
-
-    % Paths: Student Training Flow
-    \draw [darrow] (cache) |- node[near start, right] {Supervise} (loss_calc);
-    \draw [arrow] (lut_opt) -- node[midway, above] {$w_q$} (loss_calc);
-    \draw [arrow] (backbone) -- node[midway, above] {$w_p$} (loss_calc);
-    \draw [arrow] (loss_calc) -- node[midway, right] {Optimize} (lut_opt);
-
-    % Paths: Offline Document Indexing Flow
-    \draw [arrow] (backbone) -- node[midway, left] {Index} (inv_index);
-
-    % Paths: Online Production Serving Flow
-    \draw [arrow] (q_input) -- (lut_opt);
-    \draw [arrow] (lut_opt) -- node[midway, left] {$w_q$} (inv_index);
-    \draw [arrow] (inv_index) -- node[midway, above] {$S_{\text{sparse}}$} (serving);
-    
-    \draw [arrow] (q_input) |- (dense_enc);
-    \draw [arrow] (dense_enc) -- node[midway, left] {$e_q$} (dense_db);
-    \draw [arrow] (dense_db) -- node[midway, right] {$S_{\text{dense}}$} (serving);
-
-    % Legend or borders
-    \draw[dashed, draw=gray!40] ($(q_input.north west)+(-0.3,0.3)$) rectangle ($(cache.south east)+(0.3,-0.3)$);
-    \node[anchor=north west, font=\sffamily\scriptsize\bfseries, text=gray] at ($(q_input.north west)+(-0.3,0.3)$) {PHASE 1: Offline Teacher Generation};
-
-    \draw[dashed, draw=gray!40] ($(lut_opt.north west)+(-0.3,0.3)$) rectangle ($(loss_calc.south east)+(0.3,-0.3)$);
-    \node[anchor=north west, font=\sffamily\scriptsize\bfseries, text=gray] at ($(lut_opt.north west)+(-0.3,0.3)$) {PHASE 2: Student Distillation};
-
-    \draw[dashed, draw=gray!40] ($(inv_index.north west)+(-0.3,0.3)$) rectangle ($(dense_enc.east |- serving.south)+(0.3,-0.3)$);
-    \node[anchor=north west, font=\sffamily\scriptsize\bfseries, text=gray] at ($(inv_index.north west)+(-0.3,0.3)$) {PHASE 3: Online Production Serving (Hybrid)};
-
-\end{tikzpicture}
+\includegraphics[width=\textwidth]{docs/distillation_pipeline.jpg}
 \caption{Architecture of the complete HIVE-to-V-SPLADE Distillation Pipeline, showcasing: (1) Offline Teacher Generation utilizing local or NIM API LLM reranking; (2) Student Distillation focusing exclusively on optimizing the Query LUT weights; and (3) Online serving via a Hybrid Inverted/Vector DB index combining sparse (V-SPLADE) and dense (BGE/FAISS) retrieval.}
 \label{fig:distill_arch}
 \end{figure}
