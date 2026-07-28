@@ -1,164 +1,77 @@
-# Lexical Query Expansion (LQE) via Harness-Level Regex Synthesis
+# HIVE-to-V-SPLADE Distillation Framework
 
-This repository explores and implements **Lexical Query Expansion (LQE)** at the harness level to bridge the lexical-semantic gap in LLM agentic search. 
+This repository implements a **Teacher-Student Distillation Framework** that compiles the multi-step online reasoning loop of a hypothesis-driven retriever (**HIVE**) into a static, query-encoding-free visual sparse index (**V-SPLADE**) offline. 
 
-This research builds upon the baseline empirical study of agent retrieval strategies presented in *"Is Grep All You Need? How Agent Harnesses Reshape Agentic Search"* (Sen et al., 2026, arXiv:2605.15184v1).
-
----
-
-## 1. Context & Motivation
-
-### What the PwC Paper Does
-The baseline study (arXiv:2605.15184v1) evaluates how standard **lexical search (`grep`)** and **semantic search (`vector`)** behave within interactive agent loops (like *Chronos*, *Claude Code*, *Codex*, and *Gemini CLI*), testing them under standard inline context delivery vs. programmatic file-based delivery.
-
-### What the Baseline Lacks
-1. **The Vocabulary Mismatch Trap**: Standard `grep` is precise but extremely brittle. If a user asks *"What color vehicle did I buy?"* but the conversation contains *"purchased an emerald sedan"*, vanilla `grep` returns **0 matches** (yielding **0.0% accuracy** in our baselines).
-2. **Vector Search Context Rot (Template Overlap)**: Dense vector retrieval handles synonyms but degrades under noise. In chat transcripts, vector embeddings are dominated by **action structures** rather than **entity classes** (e.g., retrieving *"bought a matching white trenchcoat"* for a *"vehicle buy"* query because they share the actions `"bought"`/`"buy"`). 
-3. **No Automated Middleware**: The baseline assumes the agent must manually iterate on queries. It lacks an automated, dynamic translation layer in the harness middleware.
+By supervising the student sparse encoder with reasoning-aware gating targets and listwise rank margins, we embed query-time reasoning directly into visual document term expansions, enabling complex search on a standard CPU-only inverted index in under 5ms.
 
 ---
 
-## 2. Our Proposed Solution: LQE-Grep
+## Key Features
 
-We introduce **Harness-Level Regex Query Synthesis** to resolve the core dilemmas of both lexical and semantic search:
+1. **Teacher-Student Distillation:** Compiles multi-step LLM reasoning rationales (Stage 4) and compensatory query expansions (Stage 2) into a static student Query Lookup Table (LUT).
+2. **Hybrid Sparse-Dense Channel:** Combines V-SPLADE lexical precision with dense retrieval (BGE / ColBERT) to resolve zero-shot domain mismatches.
+3. **Pseudo-Relevance Feedback (PRF):** A two-pass CPU-only query expansion loop that leverages initial top-K document activations to bridge out-of-vocabulary (OOV) terms on unseen splits.
 
-* **Semantic Recall + Lexical Precision**: A lightweight LLM middleware step inside the harness expands semantic query categories into regex alternation groups (e.g., `vehicle` $\to$ `\b(sedan|coupe|suv|car|motorcycle|...)\b`).
-* **Semantic Entity Locking**: The regex acts as a strict lexical filter, blocking vector search distractors (like apparel buying actions) by matching only specified category members.
-* **Cognitive Offloading**: Offloads query planning from the main agent to the harness middleware, avoiding agent collapse on smaller backbones.
-* **Zero-Index Infrastructure**: Reaps the benefits of semantic search directly on raw text files with zero embedding or database overhead.
+---
 
+## Installation & Setup
+
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Environment Variables:**
+   Create a `.env` file in the root directory:
+   ```env
+   NVIDIA_API_KEY="your_nvidia_nim_api_key_here"
+   ```
+
+---
+
+## Usage Guide
+
+The pipeline is split into three phases:
+
+### 1. Teacher Target Generation (Offline)
+Generate reasoning rationales and relevance scores from the HIVE teacher:
+```bash
+python src/distillation/generate_teacher_data.py \
+  --dataset mm-bright/MM-BRIGHT \
+  --split apple,aviation,bioacoustics,bioinformatics,bitcoin \
+  --num-queries 50 \
+  --output-path results/mm_bright_train_teacher_targets_filtered.json
 ```
-LLM Agent issues Search -> [Harness LQE Prompt] -> LLM Synthesizes Regex -> Grep Search on Raw Files
+
+### 2. Student Distillation
+Train the student Query Lookup Table (LUT) on the generated targets:
+```bash
+python src/distillation/train_student.py \
+  --targets-path results/mm_bright_train_teacher_targets_filtered.json \
+  --checkpoint-path results/vsplade_student_checkpoint.pt
+```
+
+### 3. Hybrid Evaluation
+Evaluate the distilled student hybrid pipeline on held-out test splits (e.g. `law`):
+```bash
+python src/distillation/evaluate_hybrid.py \
+  --checkpoint-path results/vsplade_student_checkpoint_32b.pt \
+  --dense-model BAAI/bge-large-en-v1.5 \
+  --dense-mode bi-encoder \
+  --test-splits law \
+  --use-prf \
+  --prf-k 3 \
+  --prf-alpha 0.3
 ```
 
 ---
 
-## 3. Experimental Setup & Results
+## Repository Structure
 
-We evaluated Qwen-2.5-1.5B across three retrieval configurations (Vanilla Grep, Vector Search, and LQE-Grep) on two separate benchmarks.
-
-### Benchmark A: Synthetic Dialogue Dataset (Pilot)
-A synthetic dialogue generator ([synthetic_memory.py](text_lqe/synthetic_memory.py)) was used to construct conversation histories containing a target entity (e.g. `emerald sedan`), same-category distractors (e.g. `blue motorcycle`), action-overlap distractors (e.g. `white trenchcoat`), and general chatter. Noise levels were swept by increasing distractor turns from 10 to 35.
-
-#### Pilot Results Table
-| Noise (Distractors) | Retrieval Method | QA Accuracy | Avg. Context Footprint (Tokens) |
-|---|---|---|---|
-| **10 turns** | Vanilla `grep` | 0.0% | 5.7 |
-| | Vector Search | 33.3% | 42.5 |
-| | **LQE-Grep (Ours)** | **83.3%** | **45.7** |
-| **20 turns** | Vanilla `grep` | 0.0% | 8.5 |
-| | Vector Search | 0.0% | 42.5 |
-| | **LQE-Grep (Ours)** | **83.3%** | **62.0** |
-| **35 turns** | Vanilla `grep` | 0.0% | 8.0 |
-| | Vector Search | 0.0% | 42.2 |
-| | **LQE-Grep (Ours)** | **100.0%** | **63.7** |
-
-#### Pilot Performance Curves
-Below is the double-panel plot generated by [plot_results.py](text_lqe/plot_results.py) visualizing accuracy and token footprints across noise levels:
-
-![Pilot Evaluation Results](results/evaluation_results.png)
-
----
-
-### Benchmark B: Real-World LongMemEval Dataset
-We evaluated all 70 `single-session-user` queries from the real-world **LongMemEval** dataset (`longmemeval_s_cleaned.json`), where each query is embedded in a noisy history averaging **~100k tokens (500+ turns)**.
-
-#### LongMemEval Results Table
-| Retrieval Method | QA Accuracy | Avg. Context Footprint (Tokens) | Notes / Behavior |
-|---|---|---|---|
-| **Vanilla Grep** | 55.7% | 1,467.4 | Highly precise when queries exactly match corpus words. Fails on mismatches. |
-| **LQE-Grep (v1)** | **65.7%** | 4,697.3 | Highest recall but suffers from severe token inflation due to over-expansion of common terms. |
-| **LQE-Grep v2 (Ours)** | **64.3%** | **4,191.0** | **Maintains high recall while reducing token footprint by 10.8%** via local dialogue turn-frequency filtering. |
-| **Vector Search** | **0.0%** | **64.4** | Failed completely due to the **Truncation Bottleneck** (embedding 500+ turns was too slow, forcing candidate truncation to the first 150 turns, missing the needle in session 51). |
-
-### Benchmark C: BEIR NFCorpus Medical Dataset
-We evaluated the retrievers on all 323 test queries from the **BEIR NFCorpus** medical abstracts dataset, measuring **Success@3** (whether the single relevant target document was retrieved in the top-3 results) on a haystack of 50 documents (1 target + 49 distractors).
-
-#### NFCorpus Results Table
-| Retrieval Method | Success@3 | Avg. Context Footprint (Tokens) | Notes / Behavior |
-|---|---|---|---|
-| **Vanilla Grep** | 50.42% | 1,949.6 | High success on exact queries. Fails on vocabulary mismatch. |
-| **LQE-Grep (v1)** | 56.30% | 5,689.8 | High recall but suffers from severe token inflation due to generic medical terminology. |
-| **LQE-Grep v2 (Ours)** | **57.98%** | **3,182.3** | **Outperforms LQE v1 in recall while reducing token footprint by 44.1%** via dynamic global Document Frequency (DF) filtering. |
-| **Vector Search** | 15.13% | N/A | Low success. Embeddings suffer from semantic blurring on domain-specific abstractions. |
-
-### Concrete Evaluation Examples
-
-To illustrate the retrieval behaviors of each method, we detail case studies from both datasets below.
-
-#### Case Study 1: LongMemEval (Conversational History)
-*   **Query**: *"How many shirts did I pack for my 5-day trip to Costa Rica?"* (Ground Truth Answer: **7**)
-*   **Target Dialogue Turn**: `User: ...on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts, but I only ended up wearing 3...`
-*   **Method Behaviors**:
-    *   **Vanilla Grep**: Searches strictly for `Costa Rica` and `shirts`. If the user phrases it as *"journey"* or *"tops"*, exact matching fails (vocabulary mismatch).
-    *   **LQE-Grep (v2)**: Expands the query concept into `(costa|rica|trip|shirts|pack|travel|clothing|apparel|destination|vacation)`. Matches target synonyms at native search speeds. Dynamic local turn-frequency filtering prunes conversational noise (e.g. "name", "shop"), saving **10.8%** context tokens.
-    *   **Vector Search**: Fails completely (**0.0% accuracy**) because embedding the 500+ conversational turns exceeds standard retrieval context limits, resulting in aggressive truncation that leaves the target session outside the retrieval window.
-
-#### Case Study 2: BEIR NFCorpus (Domain-Specific IR)
-*   **Query**: *"Phytates for the Treatment of Cancer"* (Target Document: **MED-2568**)
-*   **Target Document (MED-2568)**:
-    *   *Title*: `IP6: a novel anti-cancer agent.`
-    *   *Text*: `Inositol hexaphosphate (InsP6 or IP6) is ubiquitous... A striking anti-cancer action of IP6 has been demonstrated both in vivo and in vitro...`
-*   **Method Behaviors**:
-    *   **Vanilla Grep**: Searches strictly for `phytates` and `cancer`. Since the document uses the technical synonym *"Inositol hexaphosphate"* (and abbreviations *"InsP6"* / *"IP6"*) rather than *"phytates"*, Vanilla Grep fails to retrieve it.
-    *   **LQE-Grep (v1)**: Expands the query into `(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|health|wellness)`. This successfully retrieves the target document via `anti-cancer` or `phyticacid`, but suffers from high token overhead because common terms like *"health"* pull in massive numbers of distractor documents.
-    *   **LQE-Grep v2 (Ours)**: Uses global Document Frequency (DF) filtering to prune high-frequency medical terms (e.g. removing *"health"*), yielding the optimized regex: `(phytates|phyticacid|phytochemicals|antioxidants|anti-cancer|chemoprevention|dietaryfiber|nutrient|wellness)`. This maintains the successful match while cutting average tokens by **44.1%**.
-    *   **Vector Search**: Retrieves generic leukemia or blood cell papers because it matches the concept of cancer treatments broadly, blurring the specificity of phytates (**15.13% success**).
-
----
-
-## 4. How Modern Coding Agents Handle Search
-
-To understand how our findings apply to industry tools, we examined the search architectures of major AI agent platforms:
-
-* **Claude Code (Anthropic)**: Favoring a philosophy of **agentic search**, Claude Code does not use native local vector databases or embeddings. Instead, it relies on direct filesystem inspection using **ripgrep (`rg`)** and globbing, loading matching files on-demand into its large context window. Semantic search is only available if a developer hooks in an external database via a Model Context Protocol (MCP) plugin.
-* **OpenClaw**: A modular, model-agnostic agent framework. It has no built-in semantic search engine; it uses configurable web and file search skills.
-* **Antigravity (Google DeepMind)**: Employs a similar agentic search pattern, executing recursive lexical searches over raw files using a fast `grep_search` (ripgrep) tool without maintaining a local vector index.
-
-### Why LQE Matters for Agentic Loops
-Because CLI agents default to raw, local lexical utilities (like ripgrep) for file searching, they suffer from the **Vocabulary Mismatch Problem** (missing `"sedan"` when querying `"vehicle"`). LQE-Grep bridges this gap entirely at the harness middleware level—enabling **semantic-level recall** directly on top of their fast, native ripgrep tools without the overhead of local vector databases.
-
----
-
-## 5. Repository Structure
-
-*   `text_lqe/`: Text-based Lexical Query Expansion experiments.
-    *   [text_lqe/synthetic_memory.py](text_lqe/synthetic_memory.py): Programmatic dialogue generator for creating controlled lexical-semantic mismatch datasets.
-    *   [text_lqe/lqe_evaluation.py](text_lqe/lqe_evaluation.py): Evaluates LQE-Grep over synthetic dataset sweeps.
-    *   [text_lqe/real_dataset_eval.py](text_lqe/real_dataset_eval.py): Benchmarks LQE-Grep over the real-world LongMemEval conversational corpus.
-    *   [text_lqe/nfcorpus_eval.py](text_lqe/nfcorpus_eval.py): Benchmarks LQE-Grep on the BEIR NFCorpus medical search dataset.
-    *   [text_lqe/plot_results.py](text_lqe/plot_results.py): Generates performance graphs from JSON results.
-*   `multimodal/`: Multimodal experiments (CLIP / M-LQE vs. VLM).
-    *   [multimodal/multimodal_lqe_eval.py](multimodal/multimodal_lqe_eval.py): CLIP and M-LQE evaluation on ARO Attribution dataset.
-    *   [multimodal/multimodal_vlm_eval.py](multimodal/multimodal_vlm_eval.py): VLM evaluation on ARO Attribution dataset.
-    *   [multimodal/winoground_lqe_eval.py](multimodal/winoground_lqe_eval.py): CLIP and M-LQE evaluation on Winoground.
-    *   [multimodal/winoground_vlm_eval.py](multimodal/winoground_vlm_eval.py): VLM evaluation on Winoground.
-    *   [multimodal/compare_aro_results.py](multimodal/compare_aro_results.py): Comparison of ARO performance.
-    *   [multimodal/winoground_compare.py](multimodal/winoground_compare.py): Comparison of Winoground performance.
-    *   [multimodal/run_multimodal_experiment.py](multimodal/run_multimodal_experiment.py): Orchestrates CLIP vs. VLM on ARO dataset.
-    *   [multimodal/run_winoground_experiment.py](multimodal/run_winoground_experiment.py): Orchestrates CLIP vs. VLM on Winoground.
-    *   [multimodal/interactive_retrieval.py](multimodal/interactive_retrieval.py): Interactive demonstration for multimodal retrieval.
-    *   [multimodal/multimodal_retrieval_demo.py](multimodal/multimodal_retrieval_demo.py): Scripted demonstration of multimodal query parsing.
-*   `results/`: Directory containing all evaluation result JSONs, markdown comparisons, cached captions, and generated figures.
-*   [docs/presentation.md](docs/presentation.md) / [docs/presentation.tex](docs/presentation.tex): Slide decks outlining the research background, motivated gaps, pilot and real-world results, and TikZ visual schematics.
-*   [docs/research_proposal.tex](docs/research_proposal.tex): Technical LaTeX research proposal detailing LQE motivation, design, and pilot evaluation metrics.
-*   [docs/experiment_results.md](docs/experiment_results.md): Detailed markdown log containing analysis and findings from the evaluation.
-*   [docs/2605.15184v1.pdf](docs/2605.15184v1.pdf): Baseline study paper ("Is Grep All You Need?").
-
----
-
-## 6. Next Steps
-
-1. **Conservative LQE Expansion (LQE v2)**: Restrict regex query expansion to filter out high-frequency stop-words (like "name", "shop", "color") which cause massive context inflation in large corpora.
-2. **Evaluation Scale**: Run the full 500-question LongMemEval dataset and the complete 3,000+ document BEIR NFCorpus benchmark.
-3. **Paper Drafting**: Outline a standard LaTeX layout comparing lexical regex constraints vs. dense embedding similarity in production agent loops.
-
-
-
-Multimodal models + search methods
-
-Check out claude code, openclaw to see if grep is being combined with semantic search.
-
-(thnink about including decomposition if possible)
-
-Text-to-Grep idea... explore ideas, datasets..
+* `src/`: Core Python source modules.
+  * `src/models.py`: Helper functions for loading local/API models.
+  * `src/distillation/generate_teacher_data.py`: HIVE online target generation.
+  * `src/distillation/train_student.py`: Student Query LUT fine-tuning.
+  * `src/distillation/evaluate_hybrid.py`: Hybrid sparse-dense evaluator with PRF.
+* `results/`: Directory containing checkpoints, teacher targets, and evaluation logs.
+* `docs/`: LaTeX papers, manuscripts, and slides outlining the theoretical framework.
