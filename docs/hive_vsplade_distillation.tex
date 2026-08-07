@@ -43,7 +43,7 @@ Modern Visual Document Retrieval (VDR) requires matching visual pages (e.g., cha
 
 The core research question of this proposal is: \textit{Can we compile the reasoning capability of a multi-stage online LLM pipeline into a static visual sparse representation offline?} 
 
-We propose a teacher-student framework to perform this compilation. Under this framework, the online HIVE pipeline serves as the **Teacher** during training, producing reasoning targets. The V-SPLADE model serves as the **Student**, learning to pre-activate reasoning-related tokens directly from image pixels so that no LLM or deep vision network is needed at query time.
+We propose a teacher-student framework to perform this compilation. Under this framework, the online HIVE pipeline serves as the \textbf{Teacher} during training, producing reasoning targets. The V-SPLADE model serves as the \textbf{Student}, learning to pre-activate reasoning-related tokens directly from image pixels so that no LLM or deep vision network is needed at query time.
 
 ---
 
@@ -116,7 +116,7 @@ where $\mathcal{L}_{\text{sparsity}}$ is the $L1$ regularization on document wei
 \subsection{Example 1: Electrical Circuit Analysis (Logical Visual Dependencies)}
 Consider a visual document database containing circuit diagrams.
 \begin{itemize}
-    \item \textbf{The Document Image $d$ (assigned as Doc 25):} A diagram showing a battery, a switch in the **open position** (depicted as a visual gap in the wiring), and a light-emitting diode (LED).
+    \item \textbf{The Document Image $d$ (assigned as Doc 25):} A diagram showing a battery, a switch in the \textbf{open position} (depicted as a visual gap in the wiring), and a light-emitting diode (LED).
     \item \textbf{The Query $q$:} Text query \texttt{"Why is my LED not lighting up?"}.
     \item \textbf{The HIVE Teacher Loop (Offline Training):}
     \begin{enumerate}
@@ -132,7 +132,7 @@ Consider a visual document database containing circuit diagrams.
     \begin{equation}
     w_{\text{Doc 25}} = \{\text{\texttt{circuit}}: 4.5, \text{\texttt{diagram}}: 3.8, \text{\texttt{open}}: 4.0, \text{\texttt{break}}: 3.5, \text{\texttt{continuity}}: 3.0\}
     \end{equation}
-    These weights are saved in a static **inverted index** (the search engine's internal dictionary):
+    These weights are saved in a static \textbf{inverted index} (the search engine's internal dictionary):
     \begin{align*}
         \text{\texttt{circuit}} &\to [(\text{Doc 1}, 2.1), (\text{Doc 25}, 4.5)] \\
         \text{\texttt{open}} &\to [(\text{Doc 25}, 4.0)] \\
@@ -149,7 +149,7 @@ Consider a visual document database containing circuit diagrams.
         \begin{equation}
         \text{Score} = w_q[\text{\texttt{circuit}}] \cdot 4.5 + w_q[\text{\texttt{break}}] \cdot 3.5 = 8.0
         \end{equation}
-        This lookup is completely static, requires **no GPU execution or active LLMs at query time**, yet returns the correct document containing the visual reasoning explanation.
+        This lookup is completely static, requires \textbf{no GPU execution or active LLMs at query time}, yet returns the correct document containing the visual reasoning explanation.
     \end{enumerate}
 \end{itemize}
 
@@ -213,24 +213,24 @@ Teacher target generation is performed offline using high-capacity LLMs:
 \end{itemize}
 
 \subsubsection{Target Dataset Composition (2,607 Total Targets)}
-To ensure robust zero-shot evaluation without data leakage, we explicitly reserved 9 target domains exclusively for held-out inference (\texttt{law}, \texttt{gaming}, \texttt{askubuntu}, \texttt{salesforce}, \texttt{travel}, \texttt{academia}, \texttt{medicalsciences}, \texttt{math}, \texttt{psychology}). All training targets were compiled strictly from non-overlapping splits, yielding **2,607 total distillation targets**:
+To ensure robust zero-shot evaluation without data leakage, we explicitly reserved 9 target domains exclusively for held-out inference (\texttt{law}, \texttt{gaming}, \texttt{askubuntu}, \texttt{salesforce}, \texttt{travel}, \texttt{academia}, \texttt{medicalsciences}, \texttt{math}, \texttt{psychology}). All training targets were compiled strictly from non-overlapping splits, yielding \textbf{2,607 total distillation targets}:
 \begin{enumerate}
-    \item **MM-BRIGHT Non-Evaluation Training Splits (1,203 Targets):** Query-document targets compiled from the 15 remaining MM-BRIGHT training splits (\texttt{apple}, \texttt{aviation}, \texttt{bioacoustics}, \texttt{bioinformatics}, \texttt{bitcoin}, \texttt{chemistry}, \texttt{christianity}, \texttt{crypto}, \texttt{earthscience}, \texttt{economics}, \texttt{gis}, \texttt{islam}, \texttt{pm}, \texttt{sustainability}).
-    \item **Text-Rich BEIR Benchmarks (1,400 Targets):** To resolve out-of-vocabulary (OOV) bottlenecks, targets were generated from three domain-specific BEIR corpora:
+    \item \textbf{MM-BRIGHT Non-Evaluation Training Splits (1,203 Targets):} Query-document targets compiled from the 15 remaining MM-BRIGHT training splits (\texttt{apple}, \texttt{aviation}, \texttt{bioacoustics}, \texttt{bioinformatics}, \texttt{bitcoin}, \texttt{chemistry}, \texttt{christianity}, \texttt{crypto}, \texttt{earthscience}, \texttt{economics}, \texttt{gis}, \texttt{islam}, \texttt{pm}, \texttt{sustainability}).
+    \item \textbf{Text-Rich BEIR Benchmarks (1,400 Targets):} To resolve out-of-vocabulary (OOV) bottlenecks, targets were generated from three domain-specific BEIR corpora:
     \begin{itemize}
-        \item **\texttt{BeIR/fiqa} (Finance):** 500 queries providing corporate and financial terminology.
-        \item **\texttt{BeIR/scidocs} (Science/Bio):** 500 academic citation queries covering biomedical and physical abstracts.
-        \item **\texttt{BeIR/dbpedia-entity} (General Entity):** 400 structured entity queries covering history, arts, and general knowledge.
+        \item \textbf{\texttt{BeIR/fiqa} (Finance):} 500 queries providing corporate and financial terminology.
+        \item \textbf{\texttt{BeIR/scidocs} (Science/Bio):} 500 academic citation queries covering biomedical and physical abstracts.
+        \item \textbf{\texttt{BeIR/dbpedia-entity} (General Entity):} 400 structured entity queries covering history, arts, and general knowledge.
     \end{itemize}
-    \item **Synthetic Layout QA (4 Targets):** 4 query targets from \texttt{vidore/syntheticDocQA\_government\_reports\_test}.
+    \item \textbf{Synthetic Layout QA (4 Targets):} 4 query targets from \texttt{vidore/syntheticDocQA\_government\_reports\_test}.
 \end{enumerate}
 
 \subsubsection{Why Visual Datasets Were Replaced in Training}
-Although our student model is evaluated on visual document images in production, **the student's document encoder and Query LUT operate entirely in the text domain during training**. During indexing, the visual layouts are pre-parsed using frozen document layout models, mapping the visual content to textual BPE tokens.
+Although our student model is evaluated on visual document images in production, \textbf{the student's document encoder and Query LUT operate entirely in the text domain during training}. During indexing, the visual layouts are pre-parsed using frozen document layout models, mapping the visual content to textual BPE tokens.
 Switching from synthetic visual datasets (like \texttt{syntheticDocQA}) to standard text-rich BEIR datasets provided two critical advantages:
 \begin{itemize}
-    \item **Continuous Relevance Gradients:** Synthetic visual datasets lack document text, providing only binary Q\&A pairs. This causes the teacher LLM to assign flat binary scores (e.g., $0.0$ or $5.0$). Text-rich BEIR datasets contain full-length documents, allowing the teacher to assign granular relevance scores.
-    \item **Namespace Collision Mitigation:** Query IDs are namespaced (e.g., prefixed as \texttt{beir\_fiqa\_test\_q}) to prevent key conflicts with existing targets.
+    \item \textbf{Continuous Relevance Gradients:} Synthetic visual datasets lack document text, providing only binary Q\&A pairs. This causes the teacher LLM to assign flat binary scores (e.g., $0.0$ or $5.0$). Text-rich BEIR datasets contain full-length documents, allowing the teacher to assign granular relevance scores.
+    \item \textbf{Namespace Collision Mitigation:} Query IDs are namespaced (e.g., prefixed as \texttt{beir\_fiqa\_test\_q}) to prevent key conflicts with existing targets.
 \end{itemize}
 
 \section{Empirical Results and Analysis}
