@@ -212,18 +212,44 @@ Teacher target generation is performed offline using high-capacity LLMs:
     \item \textbf{Target Extraction:} For each query, HIVE Stage 2 generates a compensatory query $\hat{q}$, while Stage 4 generates step-by-step rationales $R(d, q)$ and continuous relevance scores $S_{\text{HIVE}}(d \mid q) \in [0.0, 5.0]$ across a 20-document candidate pool.
 \end{itemize}
 
-\subsubsection{Target Dataset Composition (2,607 Total Targets)}
-To ensure robust zero-shot evaluation without data leakage, we explicitly reserved 9 target domains exclusively for held-out inference (\texttt{law}, \texttt{gaming}, \texttt{askubuntu}, \texttt{salesforce}, \texttt{travel}, \texttt{academia}, \texttt{medicalsciences}, \texttt{math}, \texttt{psychology}). All training targets were compiled strictly from non-overlapping splits, yielding \textbf{2,607 total distillation targets}:
+\subsubsection{Target Dataset Composition (5,055 Total Targets)}
+To ensure robust zero-shot evaluation without data leakage, we explicitly reserved 9 target domains exclusively for held-out inference (\texttt{law}, \texttt{gaming}, \texttt{askubuntu}, \texttt{salesforce}, \texttt{travel}, \texttt{academia}, \texttt{medicalsciences}, \texttt{math}, \texttt{psychology}). All training targets were compiled strictly from non-overlapping splits, yielding \textbf{5,055 total distillation targets}:
 \begin{enumerate}
-    \item \textbf{MM-BRIGHT Non-Evaluation Training Splits (1,203 Targets):} Query-document targets compiled from the 15 remaining MM-BRIGHT training splits (\texttt{apple}, \texttt{aviation}, \texttt{bioacoustics}, \texttt{bioinformatics}, \texttt{bitcoin}, \texttt{chemistry}, \texttt{christianity}, \texttt{crypto}, \texttt{earthscience}, \texttt{economics}, \texttt{gis}, \texttt{islam}, \texttt{pm}, \texttt{sustainability}).
-    \item \textbf{Text-Rich BEIR Benchmarks (1,400 Targets):} To resolve out-of-vocabulary (OOV) bottlenecks, targets were generated from three domain-specific BEIR corpora:
+    \item \textbf{MM-BRIGHT Non-Evaluation Training Splits (1,196 Targets):} Query-document targets compiled across 20 distinct scientific and technical MM-BRIGHT training splits (\texttt{aviation}: 125, \texttt{biology}: 99, \texttt{physics}: 95, \texttt{bioinformatics}: 89, \texttt{quantumcomputing}: 87, \texttt{earthscience}: 85, \texttt{crypto}: 74, \texttt{chemistry}: 65, \texttt{bitcoin}: 64, \texttt{sustainability}: 62, \texttt{philosophy}: 50, \texttt{pm}: 50, \texttt{gis}: 44, \texttt{bioacoustics}: 41, \texttt{quant}: 34, \texttt{economics}: 31, \texttt{christianity}: 30, \texttt{robotics}: 30, \texttt{islam}: 27, \texttt{apple}: 14).
+    \item \textbf{Text-Rich BEIR Benchmarks (3,855 Targets):} To resolve out-of-vocabulary (OOV) bottlenecks across general and domain-specific vocabularies, targets were compiled from five BEIR corpora:
     \begin{itemize}
+        \item \textbf{\texttt{BeIR/hotpotqa} (Multi-hop QA):} 1,567 queries providing multi-hop reasoning patterns across general knowledge.
+        \item \textbf{\texttt{BeIR/scidocs} (Science/Bio):} 998 academic citation queries covering biomedical and physical abstracts.
         \item \textbf{\texttt{BeIR/fiqa} (Finance):} 500 queries providing corporate and financial terminology.
-        \item \textbf{\texttt{BeIR/scidocs} (Science/Bio):} 500 academic citation queries covering biomedical and physical abstracts.
-        \item \textbf{\texttt{BeIR/dbpedia-entity} (General Entity):} 400 structured entity queries covering history, arts, and general knowledge.
+        \item \textbf{\texttt{BeIR/dbpedia-entity} (General Entity):} 467 structured entity queries (400 test + 67 dev) covering history, arts, and entity linking.
+        \item \textbf{\texttt{BeIR/nfcorpus} (Clinical Nutrition):} 323 clinical medical and nutritional science queries.
     \end{itemize}
     \item \textbf{Synthetic Layout QA (4 Targets):} 4 query targets from \texttt{vidore/syntheticDocQA\_government\_reports\_test}.
 \end{enumerate}
+
+Table~\ref{tab:target_dataset_breakdown} details the complete target dataset breakdown across all source corpora.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Composition of the Clean Distillation Target Dataset (5,055 Total Queries) strictly excluding the 9 held-out evaluation test splits.}
+\label{tab:target_dataset_breakdown}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Source Dataset} & \textbf{Targets} & \textbf{Percentage} & \textbf{Domain / Semantic Focus} \\
+\midrule
+\texttt{beir/hotpotqa} & 1,567 & 31.0\% & Multi-hop Wikipedia reasoning \& general knowledge \\
+\texttt{beir/scidocs} & 998 & 19.7\% & Scientific \& biomedical citation matching \\
+\texttt{mm-bright/MM-BRIGHT} & 1,196 & 23.7\% & 20 multimodal scientific/technical training domains \\
+\texttt{beir/fiqa} & 500 & 9.9\% & Corporate finance, banking, and economics QA \\
+\texttt{beir/dbpedia-entity} & 467 & 9.2\% & Structured knowledge base entity retrieval \\
+\texttt{beir/nfcorpus} & 323 & 6.4\% & Clinical nutrition and biomedical literature \\
+\texttt{vidore/syntheticDocQA} & 4 & 0.1\% & Synthetic layout document QA \\
+\midrule
+\textbf{Total} & \textbf{5,055} & \textbf{100.0\%} & \textbf{Full vocabulary coverage ($|V|=151,936$)} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Why Visual Datasets Were Replaced in Training}
 Although our student model is evaluated on visual document images in production, \textbf{the student's document encoder and Query LUT operate entirely in the text domain during training}. During indexing, the visual layouts are pre-parsed using frozen document layout models, mapping the visual content to textual BPE tokens.
